@@ -1,0 +1,24 @@
+# Demo configuration file for ONT demultiplexing pipeline
+# if no other config file is specified, this will be used by default
+
+# Input FASTQ directory (must contain at least one *.fastq.gz)
+#fastq_input: "input_data/fastq_pass_partial/"
+fastq_input: "/var/lib/minknow/data/kr_pairwise_01/no_sample_id/20260710_0032_MN37816_FBF36772_eb6d246d/fastq_pass/"
+# barcodes_tsv: "/home/rl/scripts/karl/demultiplexing/251010_241204_384strains/barcodes20241204.tsv"
+barcodes_tsv: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/setup/minibar_primers_20260630.tsv"
+
+nanofilt:
+  min_len: 1400
+  max_len: 1800
+  min_q: 10
+  headcrop: 0
+  tailcrop: 0
+
+minibar:
+  prefix: ""   # -P prefix for per-sample files
+  barcode_edit_dist: 6
+  primer_edit_dist: 6
+  search_length: 150
+
+outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/demux/"
+# project: "ont_demux"

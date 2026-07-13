@@ -1,2 +1,6 @@
 *.csv
 *.tsv
+*.fastq
+*.log
+*.html
+*.png
