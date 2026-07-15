@@ -6,10 +6,10 @@
 # Input directory containing FASTQ files (*.fastq or *.fastq.gz)
 # if demultiplexing using minibar, make sure you have reversed backwards reads first
 # input_dir: "demo/unflipped"
-input_dir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/ors_strain/fastas"
+input_dir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/snakemake_consensus/demux2_fastqs"
 
 # Output directory for all results
-outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/ors_strain/consensus"
+outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/snakemake_consensus/"
 
 # Final database filenames
 naive_database_filename: "naive_db.fasta"

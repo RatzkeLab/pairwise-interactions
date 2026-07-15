@@ -7,4 +7,6 @@
 *.fasta
 *no_clusters.txt
 *no_split.txt
+*passing_filtered_samples.txt
+*passing_samples.txt
 *.snakemake_timestamp
