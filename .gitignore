@@ -5,3 +5,6 @@
 *.html
 *.png
 *.fasta
+*no_clusters.txt
+*no_split.txt
+*.snakemake_timestamp
