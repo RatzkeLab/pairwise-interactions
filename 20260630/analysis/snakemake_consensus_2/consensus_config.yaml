@@ -1,0 +1,205 @@
+# Demo configuration file for ONT 16S consensus pipeline
+# If no other config file is specified (using the --config modifier), this will be used by default
+
+# ==================== Input/Output ====================
+
+# Input directory containing FASTQ files (*.fastq or *.fastq.gz)
+# if demultiplexing using minibar, make sure you have reversed backwards reads first
+# input_dir: "demo/unflipped"
+input_dir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/demux2_fastqs"
+
+# Output directory for all results
+outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/snakemake_consensus_2/"
+
+# Final database filenames
+naive_database_filename: "naive_db.fasta"
+multi_database_filename: "multi_db.fasta"
+
+# ==================== Quality Control ====================
+
+# Minimum number of reads required per sample (before filtering)
+# Samples with fewer reads will be excluded from analysis
+min_reads_initial: 10
+
+# Minimum number of reads required per sample (after filtering)
+# Samples with fewer reads will be excluded from alignment
+min_reads_filtered: 5
+
+# ==================== Filtering (NanoFilt) ====================
+
+filter:
+  headcrop: 0  # Number of bases to trim from the start
+  tailcrop: 0  # Number of bases to trim from the end
+  # Minimum average Q-score for reads (0 to disable)
+  min_avg_qscore: 10
+  
+  # Minimum read length in bases (0 to disable)
+  min_length: 1300
+  
+  # Maximum read length in bases (0 to disable)
+  max_length: 1700
+
+
+# ==================== Subsampling ====================
+
+# Number of reads to randomly subsample for alignment (0 = use all reads)
+subsample_n: 0
+
+# Subsampling settings
+subsample:
+  # Fixed random seed for deterministic subsampling (seqtk -s)
+  seed: 42
+
+
+# ==================== Alignment ====================
+
+initial_alignment:
+  # MAFFT algorithm for initial per-sample alignment
+  # Options: "auto" (mafft decides automatically) or "ginsi" (accurate, slow)
+  mafft_algorithm: "default"
+  # Gap opening penalty (default: 1.53 for --auto, algorithm-specific otherwise)
+  # Set to 0 to use MAFFT defaults
+  gap_open: 0
+  # Gap extension penalty (default: 0.123 for --auto, algorithm-specific otherwise)
+  # Set to 0 to use MAFFT defaults
+  gap_extend: 0
+  
+
+# ==================== Consensus ====================
+
+naive_consensus:
+  # Below this threshold, all variants at position are recorded
+  # in the default mode, the plurality vote is then taken (no wobble bases)
+  record_variants_below: 0.6
+  
+  
+# ==================== QC Consensus Generation ====================
+
+global_consensus:
+  # Positions where the winning base has proportion <= this threshold are
+  # recorded as "ambiguous" in the global consensus variants TSV report.
+  # Same logic as naive_consensus.record_variants_below, but for the final
+  # global alignment of all consensus sequences.
+  record_variants_below: 0.4
+
+
+# ==================== Clustering ====================
+
+# Settings for initial per-sample read profile generation used by cluster detection
+per_read_profile_generation:
+  # Minimum frequency for second-most-common allele to mark a position as "variable"
+  # for read profiling. Positions where the runner-up base has frequency >= this
+  # threshold are used for clustering.
+  min_minor_freq: 0.05
+  # Manual trim if auto_trim is false
+  trim_bp: 70
+  # Automatically trim based on longest leading/trailing gaps
+  auto_trim: true
+  # Minimum trim value - auto_trim cannot trim less than this
+  min_trim: 50
+  # Maximum trim value - auto_trim cannot trim more than this
+  max_trim: 250
+  # Compress gap runs (continuation gaps marked as '.' and ignored) during profiling
+  compress_gaps: true
+  # Enable generation of profile visualization plot with dendrogram and cut height (default: true)
+  enable_viz: true
+
+clustering_algorithm:
+  # Minimum number of variable positions required to attempt clustering
+  # If fewer positions are variable than this value, clustering/splitting will be skipped
+  min_variable_positions: 3
+  
+  # Minimum number of reads required to form a separate cluster (absolute)
+  # Minimum cluster size as percentage of total reads (0-100)
+  # Whichever is larger (absolute or percent) (stricter of the two) will be used
+  # Set to 0 to only use absolute min_cluster_size
+  min_cluster_size: 5
+  min_cluster_size_percent: 5.0
+  
+  # Maximum number of clusters to consider
+  # Hierarchical clustering will automatically find optimal number up to this limit
+  max_clusters: 2
+  
+  # Method to determine optimal number of clusters:
+  # "gap" - use largest gap in dendrogram merge distances (faster, heuristic)
+  # "silhouette" - maximize silhouette score (slower, more rigorous)
+  # "hdbscan" - density-based clustering (no k), robust for noise
+  # Default: "hdbscan"
+  clustering_method: "hdbscan"
+
+  hdbscan_cluster_selection_method: "eom"  # HDBSCAN cluster selection method ("eom" or "leaf")
+  hdbscan_min_samples: 5
+
+# QC clustering settings (for final consensus sequence clustering in QC report)
+# Fully independent from per-sample clustering
+qc_clustering:
+  # Minimum number of variable positions required to attempt clustering
+  min_variable_positions: 1
+  
+  # Minimum number of consensus sequences required to form a separate cluster (absolute)
+  # Minimum cluster size as percentage of total consensus sequences (0-100)
+  # Whichever is larger (absolute or percent) will be used
+  min_cluster_size: 1
+  min_cluster_size_percent: 0.0
+  
+  # Maximum number of clusters to consider in QC clustering
+  max_clusters: 300
+  
+  # Method to determine optimal number of clusters:
+  # "gap" - use largest gap in dendrogram merge distances (faster, heuristic)
+  # "silhouette" - maximize silhouette score (slower, more rigorous)
+  # "hdbscan" - density-based clustering (no k), robust for noise
+  # Default: "hdbscan"
+  clustering_method: "hdbscan"
+
+  # HDBSCAN options for QC clustering
+  hdbscan_cluster_selection_method: "eom"  # "eom" or "leaf"
+  hdbscan_min_samples: 1  # Defaults to min_cluster_size if not specified
+
+# ==================== Cluster realignment and consensuss ====================
+
+secondary_alignment:
+  # MAFFT algorithm for cluster realignment
+  # Options: "auto" (mafft decides automatically) or "ginsi" (accurate, slow)
+  mafft_algorithm: "default"
+  # Gap opening penalty (0 = use MAFFT defaults)
+  gap_open: 0
+  # Gap extension penalty (0 = use MAFFT defaults)
+  gap_extend: 0
+
+cluster_consensus:
+  # Below this threshold, all variants at position are recorded for reference
+  # in the default mode, the plurality vote is then taken (no wobble bases)
+  record_variants_below: 0.6
+
+
+## ==================== Output Report ====================
+# Pairwise edit distance report
+pairwise_distance:
+  # Include naive consensus sequences in addition to cluster subconsensuses
+  include_naive_consensus: true
+  
+  # Automatically calculate trim values based on longest leading/trailing gaps
+  # If true, ignore_first_n_bp and ignore_last_n_bp are ignored
+  auto_trim: true
+  
+  # Number of bp to ignore at start of sequences when calculating distances
+  # (reduces noise from alignment artifacts at sequence ends)
+  # Only used if auto_trim is false
+  ignore_first_n_bp: 70
+  
+  # Number of bp to ignore at end of sequences when calculating distances
+  # Only used if auto_trim is false
+  ignore_last_n_bp: 70
+
+
+## ==================== QC alignment of final consensus sequences ====================
+
+qc_alignment:
+  # MAFFT algorithm for final multi-consensus alignment
+  # Options: "auto" (mafft decides automatically) or "ginsi" (accurate, slow)
+  mafft_algorithm: "default"
+  # Gap opening penalty (0 = use MAFFT defaults)
+  gap_open: 0
+  # Gap extension penalty (0 = use MAFFT defaults)
+  gap_extend: 0
