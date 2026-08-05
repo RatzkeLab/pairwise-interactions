@@ -11,3 +11,5 @@
 *passing_samples.txt
 *.snakemake_timestamp
 *pipeline_summary.md
+*.csv.gz
+*.paf
