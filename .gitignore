@@ -13,3 +13,4 @@
 *pipeline_summary.md
 *.csv.gz
 *.paf
+*.pyc
