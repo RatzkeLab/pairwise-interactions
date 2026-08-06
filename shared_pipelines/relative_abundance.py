@@ -451,7 +451,9 @@ def hierarchy_analysis(cfg):
     mat.to_csv(cfg.relative_abundance_out_dir / "r05_pairwise_relative_abundance_matrix.csv")
 
     total_wins = (win == 1).sum(axis=1)
-    rank_order = total_wins.sort_values(ascending=False).index.tolist()
+    # stable sort (win's index is already alphabetical) so ties in total_wins break
+    # deterministically by strain name, rather than pandas' default unstable quicksort
+    rank_order = total_wins.sort_values(ascending=False, kind="stable").index.tolist()
     dci, n_consistent, n_inconsistent = compute_directional_consistency(win, rank_order)
     print(f"Directional Consistency Index (rank = total wins): {dci:.3f}  ({n_consistent} consistent, {n_inconsistent} upsets)")
 
