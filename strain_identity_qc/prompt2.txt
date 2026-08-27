@@ -1,0 +1,14 @@
+alright, the issue with the non-matching 16s is indeed deeply concerning, so lets focus on that first. i was aware that they wouldnt match up very much (was warned of this by the collaborator who provided me with the genomic tables) (that was done using next gen, whereas these experiments were using ont on amplicons), but it sounds like they dont match up at all. can we do new rounds of qc for both 20260630 and 20260721? i'm worried specifically with 20260721 that there was some mix up on the indexing or during transfer in the echo (or perhaps some kind of major contamination), since these soruce wells /were/ from the same collection / taken from the same frozen stock, so its quite disconcerting to me to see the match up be that bad. 
+
+maybe it makes sense to build off of the existing qc notebook, or maybe it makes sense to start a new one. multiple notebooks or scripts might also make sense in a brand new folder to keep things clean and organized (i definitely prefer short and modular when it comes to file size and project organization). the sources i'm interested in comparing are as follows:
+16s as extracted by our pairwise wells (sequences that show up in most of the wells where that strain was shot probably belong to that strain... but we have to be careful here about highly similar strains dominating across the board so maybe the threshold needs to be set high to accept something as a sequence like this ... which i'm worried we didnt do enough in the initial assignment of 16s sequences)
+16s from the "mono" wells from these 2 experiments
+16s from the corroborated consensus already mentioned in this context (from the merge_consensus_sequences project /home/rl/scripts/karl/merge_consensus_sequences/collapse_naive_updated3_15diff/corroborated_db.fasta )
+16s extracted from the assembled genomes
+
+i want simple stats, metrics, and visualizations to get a clear (hopefully not  too overwhelming) picture of whats going on
+
+
+and lastly (firstly) for sake of context, before you start any major planning or  writing code, would it make sense to move this phase to a new chat session? if so, i guess another handoff md or similar would be in order
+
+also bonus question, maybe to be ansered later, but what directions would you take for progressing this project? i was thinking about  predicting interactions fro genomes but it seems like we might not have enough distinguishable strains to train a strong (generalizable) model for that ... alternatively, i was thinking about building an interaction network out of these data (or more collected i.e. with replicates and more of the mono wells for sanity check) then doing a kind of graph neural network prediction of community assembly based on that network and maybe also the genomes. ... but, open to other ideas. 
