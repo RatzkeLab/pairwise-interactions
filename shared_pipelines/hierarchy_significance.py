@@ -234,9 +234,13 @@ def permutation_test(cfg, n_permutations=N_PERMUTATIONS_DEFAULT, seed=0):
 # ===========================================================================
 
 
-def bt_goodness_of_fit(cfg):
-    wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
-    wells = wells[~wells["missing_reference"]].copy()
+def _pool_reads_and_fit_bt(wells):
+    """wells: r02-style dataframe already filtered to resolvable (non-missing-reference) rows.
+    Pools confident read counts per unique pair (canonical a/b orientation), restricts to the
+    largest connected component, and fits Bradley-Terry. Shared by bt_goodness_of_fit,
+    parametric_bootstrap_intransitivity, bootstrap_confidence_intervals, and
+    sensitivity_reliable_pairs_only -- every test that needs "pool reads -> fit BT" starts here."""
+    wells = wells.copy()
     wells["n_reads_a"] = np.where(wells["strain1"] == wells["strain_a"], wells["n_strain1"], wells["n_strain2"])
     wells["n_reads_b"] = np.where(wells["strain1"] == wells["strain_a"], wells["n_strain2"], wells["n_strain1"])
     pooled = wells.groupby(["strain_a", "strain_b"]).agg(n_reads_a=("n_reads_a", "sum"), n_reads_b=("n_reads_b", "sum")).reset_index()
@@ -247,7 +251,31 @@ def bt_goodness_of_fit(cfg):
     main_component = set(components[0])
     pooled_main = pooled[pooled["strain_a"].isin(main_component) & pooled["strain_b"].isin(main_component)]
 
-    _, _, pseudo_r2, fit = fit_bradley_terry(pooled_main, main_component)
+    strength, se, pseudo_r2, fit = fit_bradley_terry(pooled_main, main_component)
+    return strength, se, pseudo_r2, fit, main_component, pooled_main
+
+
+def _win_matrix_from_pooled(pooled_main, main_component):
+    """Build a discrete win/loss/tie numpy matrix directly from pooled read counts (used
+    where we don't have (or don't want to reuse) the saved r05 relative-abundance matrix --
+    e.g. inside a bootstrap/simulation loop operating on a resampled or simulated dataset)."""
+    strains_sorted = sorted(main_component)
+    idx = {s: i for i, s in enumerate(strains_sorted)}
+    n = len(strains_sorted)
+    A = np.full((n, n), np.nan)
+    for r in pooled_main.itertuples():
+        i, j = idx[r.strain_a], idx[r.strain_b]
+        rel_a = r.n_reads_a / (r.n_reads_a + r.n_reads_b)
+        w = 1.0 if rel_a > 0.5 else (0.0 if rel_a < 0.5 else 0.5)
+        A[i, j] = w
+        A[j, i] = (1 - w) if w != 0.5 else 0.5
+    return strains_sorted, A
+
+
+def bt_goodness_of_fit(cfg):
+    wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
+    wells = wells[~wells["missing_reference"]].copy()
+    _, _, pseudo_r2, fit, main_component, pooled_main = _pool_reads_and_fit_bt(wells)
 
     n_params = len(main_component) - 1
     lr_stat = fit.null_deviance - fit.deviance
@@ -304,11 +332,245 @@ def bt_goodness_of_fit(cfg):
 
 
 # ===========================================================================
+# 3. parametric bootstrap: is the observed intransitivity more than a perfect
+#    hierarchy would produce from sampling noise alone?
+# ===========================================================================
+
+
+def parametric_bootstrap_intransitivity(cfg, n_simulations=2000, seed=0):
+    """The permutation test (test 1) asks "is there a hierarchy at all, vs. pure chance."
+    This asks a sharper question: *assuming the fitted Bradley-Terry model is exactly true*,
+    would its own sampling noise (at the actual read depth each pair happened to get)
+    produce this much apparent intransitivity on its own? If the observed cyclic-triad
+    fraction sits comfortably inside this noise band, the small amount of intransitivity we
+    see could just be measurement noise around a perfect hierarchy. If it's well above the
+    band, that's evidence of real, extra structure (genuine context-dependence) beyond
+    binomial noise -- a more targeted companion to test 2's aggregate deviance GoF test.
+
+    Method: take the fitted per-strain strengths and, for every tested dyad, simulate a new
+    win count from Binomial(n, p) where n is that dyad's *actual* pooled read total and p is
+    the BT-predicted win probability -- same noise level as the real data, but zero
+    unexplained structure by construction. Rebuild the win matrix, recompute the cyclic
+    fraction and DCI, repeat thousands of times. Uses the exact same dyad/triad mask as the
+    observed analysis (from r05's saved matrix) so the two are directly comparable.
+    """
+    wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
+    wells = wells[~wells["missing_reference"]].copy()
+    strength, _, _, _, main_component, pooled_main = _pool_reads_and_fit_bt(wells)
+
+    mat = pd.read_csv(cfg.relative_abundance_out_dir / "r05_pairwise_relative_abundance_matrix.csv", index_col=0)
+    observed = validate_fast_implementations(mat)
+    win_obs = win_matrix_from_relative_abundance(mat)
+    strains, A_obs = _win_to_array(win_obs)
+    mask = _valid_mask(A_obs)
+    n = len(strains)
+    idx_of = {s: i for i, s in enumerate(strains)}
+
+    upper = np.triu(np.ones((n, n), dtype=bool), k=1)
+    valid_pair = mask & upper
+    dyad_i, dyad_j = np.where(valid_pair)
+
+    pooled_lookup = {
+        (r.strain_a, r.strain_b): (r.n_reads_a + r.n_reads_b, strength[r.strain_a] - strength[r.strain_b])
+        for r in pooled_main.itertuples()
+    }
+    n_totals = np.empty(len(dyad_i))
+    p_win = np.empty(len(dyad_i))
+    for k, (di, dj) in enumerate(zip(dyad_i, dyad_j)):
+        a, b = strains[di], strains[dj]
+        ntot, delta = pooled_lookup[(a, b)]
+        n_totals[k] = ntot
+        p_win[k] = 1 / (1 + np.exp(-delta))
+    n_totals_int = n_totals.astype(int)
+
+    I, J, K, valid_triple = _precompute_triad_indices(n)
+    mask_ijk = valid_triple & mask[I, J] & mask[J, K] & mask[I, K]
+
+    rng = np.random.default_rng(seed)
+    null_cyclic = np.empty(n_simulations)
+    null_dci = np.empty(n_simulations)
+
+    for s in range(n_simulations):
+        wins_i = rng.binomial(n_totals_int, p_win)
+        frac_i = wins_i / n_totals
+        w = np.where(frac_i > 0.5, 1.0, np.where(frac_i < 0.5, 0.0, 0.5))
+        A = np.full((n, n), np.nan)
+        A[dyad_i, dyad_j] = w
+        A[dyad_j, dyad_i] = np.where(w == 0.5, 0.5, 1 - w)
+
+        null_dci[s], _, _ = fast_dci(A, mask)
+        null_cyclic[s], _, _ = _cyclic_fraction_fast(A, I, J, K, mask_ijk)
+
+    # one-sided: is the observed cyclic fraction unusually HIGH relative to pure BT + noise?
+    p_excess_cyclic = (np.sum(null_cyclic >= observed["cyclic_frac"]) + 1) / (n_simulations + 1)
+
+    summary = pd.DataFrame([
+        {"metric": "cyclic_frac_observed", "value": observed["cyclic_frac"]},
+        {"metric": "cyclic_frac_bt_noise_mean", "value": float(np.mean(null_cyclic))},
+        {"metric": "cyclic_frac_bt_noise_sd", "value": float(np.std(null_cyclic))},
+        {"metric": "p_value_excess_intransitivity", "value": p_excess_cyclic},
+        {"metric": "dci_observed", "value": observed["dci"]},
+        {"metric": "dci_bt_noise_mean", "value": float(np.mean(null_dci))},
+        {"metric": "dci_bt_noise_sd", "value": float(np.std(null_dci))},
+        {"metric": "n_simulations", "value": n_simulations},
+        {"metric": "n_dyads_simulated", "value": len(dyad_i)},
+    ])
+    out_path = cfg.relative_abundance_out_dir / "r09_parametric_bootstrap_intransitivity.csv"
+    summary.to_csv(out_path, index=False)
+
+    null_path = cfg.relative_abundance_out_dir / "r09_parametric_bootstrap_null_distributions.csv"
+    pd.DataFrame({"cyclic_frac": null_cyclic, "dci": null_dci}).to_csv(null_path, index=False)
+
+    print(f"observed cyclic fraction = {observed['cyclic_frac']:.3f}  |  "
+          f"BT-model + sampling-noise-alone cyclic fraction = {np.mean(null_cyclic):.3f} +/- {np.std(null_cyclic):.3f}  |  "
+          f"p = {p_excess_cyclic:.4g}")
+    if p_excess_cyclic < 0.05:
+        print("  -> significant: there is MORE intransitivity than a perfect hierarchy's own sampling "
+              "noise would produce -- real excess non-hierarchical structure, not just noise")
+    else:
+        print("  -> not significant: the observed intransitivity is consistent with pure sampling "
+              "noise around a perfect hierarchy")
+    print(f"(for comparison: observed DCI = {observed['dci']:.3f} vs. BT+noise DCI = "
+          f"{np.mean(null_dci):.3f} +/- {np.std(null_dci):.3f} -- a calibration check, not a formal test)")
+    print(f"saved -> {out_path}, {null_path}")
+    return summary, null_cyclic, null_dci
+
+
+# ===========================================================================
+# 4. bootstrap confidence intervals on the headline hierarchy statistics
+# ===========================================================================
+
+
+def bootstrap_confidence_intervals(cfg, n_bootstrap=500, seed=0):
+    """Resample wells with replacement (the natural unit of the actual data-generating
+    process -- reads are nested in wells, wells are nested in pairs) and recompute
+    pseudo-R^2, DCI, and cyclic fraction each time, to attach a 95% CI to all three headline
+    descriptive statistics rather than reporting them as bare point estimates."""
+    wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
+    wells = wells[~wells["missing_reference"]].reset_index(drop=True)
+    n_wells = len(wells)
+
+    rng = np.random.default_rng(seed)
+    boot_pseudo_r2 = np.full(n_bootstrap, np.nan)
+    boot_dci = np.full(n_bootstrap, np.nan)
+    boot_cyclic = np.full(n_bootstrap, np.nan)
+
+    for b in range(n_bootstrap):
+        idx = rng.integers(0, n_wells, size=n_wells)
+        sample = wells.iloc[idx]
+        try:
+            _, _, pseudo_r2, _, main_component, pooled_main = _pool_reads_and_fit_bt(sample)
+        except Exception:
+            continue
+        boot_pseudo_r2[b] = pseudo_r2
+
+        _, A = _win_matrix_from_pooled(pooled_main, main_component)
+        mask = _valid_mask(A)
+        boot_dci[b], _, _ = fast_dci(A, mask)
+        boot_cyclic[b], _, _ = fast_cyclic_fraction(A, mask)
+
+    def _ci(x):
+        x = x[~np.isnan(x)]
+        return float(np.percentile(x, 2.5)), float(np.percentile(x, 97.5)), int(len(x))
+
+    observed = pd.read_csv(cfg.relative_abundance_out_dir / "r05_hierarchy_summary.csv").set_index("metric")["value"]
+
+    rows = []
+    for name, boot_arr, obs_val in [
+        ("pseudo_r2", boot_pseudo_r2, observed["bt_pseudo_r2"]),
+        ("dci", boot_dci, observed["dci"]),
+        ("cyclic_frac", boot_cyclic, observed["frac_intransitive_triads"]),
+    ]:
+        lo, hi, n_valid = _ci(boot_arr)
+        rows.append({
+            "metric": name, "observed": obs_val, "ci_lower_95": lo, "ci_upper_95": hi,
+            "n_valid_bootstraps": n_valid, "n_bootstrap": n_bootstrap,
+        })
+    summary = pd.DataFrame(rows)
+    out_path = cfg.relative_abundance_out_dir / "r10_bootstrap_confidence_intervals.csv"
+    summary.to_csv(out_path, index=False)
+
+    boot_path = cfg.relative_abundance_out_dir / "r10_bootstrap_distributions.csv"
+    pd.DataFrame({"pseudo_r2": boot_pseudo_r2, "dci": boot_dci, "cyclic_frac": boot_cyclic}).to_csv(boot_path, index=False)
+
+    for _, row in summary.iterrows():
+        print(f"{row['metric']:14s} observed={row['observed']:.3f}  95% CI=[{row['ci_lower_95']:.3f}, {row['ci_upper_95']:.3f}]  "
+              f"({row['n_valid_bootstraps']}/{n_bootstrap} bootstraps valid)")
+    print(f"saved -> {out_path}, {boot_path}")
+    return summary
+
+
+# ===========================================================================
+# 5. sensitivity check: how much does restricting to reliable (not hard-to-call)
+#    pairs change the hierarchy statistics?
+# ===========================================================================
+
+
+def sensitivity_reliable_pairs_only(cfg):
+    """Most tested pairs are singleton-replicate, and a meaningful minority are
+    near-identical-reference pairs whose "ties" are a measurement ceiling, not biology (see
+    relative_abundance.py's docstring). Recomputes pseudo-R^2/DCI/cyclic-fraction restricted
+    to pairs r03 did NOT flag `high_uncertainty_pair`, to see how much of the current
+    "15% upset rate"-style tangledness is attributable to those hard-to-call pairs rather
+    than genuine biological intransitivity.
+
+    Note: the "all_pairs" column here is recomputed from pooled per-pair read counts (ratio
+    of sums, matching how the BT model itself is fit), not read from r05 directly -- r05's
+    win matrix instead uses the mean of each replicate well's own ratio (see
+    relative_abundance.hierarchy_analysis). The two conventions agree for singleton-replicate
+    pairs (most of them) and differ only slightly (a read-count-weighted vs. an
+    equally-weighted-per-well average) for the ~445/2159 pairs with multiple replicates --
+    e.g. DCI 0.701 here vs. 0.696 in r05 for 20260721. Both are defensible; what matters for
+    this test is that "all_pairs" and "reliable_pairs_only" use the identical convention, so
+    the comparison between them is fair even though "all_pairs" won't match r05 to the third
+    decimal.
+    """
+    wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
+    wells = wells[~wells["missing_reference"]].copy()
+    pair_stats = pd.read_csv(cfg.relative_abundance_out_dir / "r03_pair_replicate_stats.csv")
+
+    reliable_keys = set(zip(
+        pair_stats.loc[~pair_stats["high_uncertainty_pair"], "strain_a"],
+        pair_stats.loc[~pair_stats["high_uncertainty_pair"], "strain_b"],
+    ))
+    wells["pair_key"] = list(zip(wells["strain_a"], wells["strain_b"]))
+    wells_reliable = wells[wells["pair_key"].isin(reliable_keys)]
+
+    def _stats_for(w):
+        _, _, pseudo_r2, _, main_component, pooled_main = _pool_reads_and_fit_bt(w)
+        _, A = _win_matrix_from_pooled(pooled_main, main_component)
+        mask = _valid_mask(A)
+        dci, n_cons, n_incons = fast_dci(A, mask)
+        cyc, n_cyc, n_tri = fast_cyclic_fraction(A, mask)
+        return {
+            "n_strains": len(main_component), "n_pairs": len(pooled_main), "pseudo_r2": pseudo_r2,
+            "dci": dci, "n_consistent": n_cons, "n_inconsistent": n_incons,
+            "cyclic_frac": cyc, "n_cyclic": n_cyc, "n_triads": n_tri,
+        }
+
+    all_stats = _stats_for(wells)
+    reliable_stats = _stats_for(wells_reliable)
+
+    summary = pd.DataFrame(
+        [{"metric": k, "all_pairs": all_stats[k], "reliable_pairs_only": reliable_stats[k]} for k in all_stats]
+    )
+    out_path = cfg.relative_abundance_out_dir / "r11_sensitivity_reliable_pairs.csv"
+    summary.to_csv(out_path, index=False)
+
+    print(f"all pairs      : n_strains={all_stats['n_strains']}, n_pairs={all_stats['n_pairs']}, "
+          f"pseudo_r2={all_stats['pseudo_r2']:.3f}, DCI={all_stats['dci']:.3f}, cyclic_frac={all_stats['cyclic_frac']:.3f}")
+    print(f"reliable only  : n_strains={reliable_stats['n_strains']}, n_pairs={reliable_stats['n_pairs']}, "
+          f"pseudo_r2={reliable_stats['pseudo_r2']:.3f}, DCI={reliable_stats['dci']:.3f}, cyclic_frac={reliable_stats['cyclic_frac']:.3f}")
+    print(f"saved -> {out_path}")
+    return summary
+
+
+# ===========================================================================
 # figures
 # ===========================================================================
 
 
-def make_significance_figures(cfg):
+def _fig08_permutation_test(cfg):
     summary = pd.read_csv(cfg.relative_abundance_out_dir / "r07_permutation_test.csv").set_index("metric")["value"]
     null_dist = pd.read_csv(cfg.relative_abundance_out_dir / "r07_permutation_null_distributions.csv")
 
@@ -332,4 +594,78 @@ def make_significance_figures(cfg):
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(cfg.relative_abundance_fig_dir / "08_permutation_test.png", dpi=150)
     plt.close(fig)
-    print(f"saved -> {cfg.relative_abundance_fig_dir / '08_permutation_test.png'}")
+
+
+def _fig09_parametric_bootstrap(cfg):
+    summary = pd.read_csv(cfg.relative_abundance_out_dir / "r09_parametric_bootstrap_intransitivity.csv").set_index("metric")["value"]
+    null_dist = pd.read_csv(cfg.relative_abundance_out_dir / "r09_parametric_bootstrap_null_distributions.csv")
+
+    fig, ax = plt.subplots(figsize=(7.5, 4.5))
+    ax.hist(null_dist["cyclic_frac"], bins=40, color=COLOR_BLUE, edgecolor="white", linewidth=0.3,
+            label="BT model + sampling noise only")
+    ax.axvline(summary["cyclic_frac_observed"], color=COLOR_CRITICAL, lw=2, label=f"observed = {summary['cyclic_frac_observed']:.3f}")
+    ax.set_xlabel("intransitive (cyclic) triad fraction")
+    ax.set_ylabel("# simulations")
+    ax.set_title(f"Observed intransitivity vs. a perfect hierarchy's own sampling noise\n"
+                 f"(p = {summary['p_value_excess_intransitivity']:.4g})")
+    ax.legend(frameon=False, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(cfg.relative_abundance_fig_dir / "09_parametric_bootstrap_intransitivity.png", dpi=150)
+    plt.close(fig)
+
+
+def _fig10_bootstrap_ci(cfg):
+    summary = pd.read_csv(cfg.relative_abundance_out_dir / "r10_bootstrap_confidence_intervals.csv").set_index("metric")
+    dist = pd.read_csv(cfg.relative_abundance_out_dir / "r10_bootstrap_distributions.csv")
+
+    panels = [("pseudo_r2", "Bradley-Terry pseudo-R²"), ("dci", "Directional Consistency Index"), ("cyclic_frac", "cyclic-triad fraction")]
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    for ax, (key, label) in zip(axes, panels):
+        vals = dist[key].dropna()
+        row = summary.loc[key]
+        ax.hist(vals, bins=30, color=COLOR_BLUE, edgecolor="white", linewidth=0.3)
+        ax.axvline(row["observed"], color=COLOR_CRITICAL, lw=2, label=f"observed = {row['observed']:.3f}")
+        ax.axvspan(row["ci_lower_95"], row["ci_upper_95"], color=COLOR_CRITICAL, alpha=0.12,
+                   label=f"95% CI [{row['ci_lower_95']:.3f}, {row['ci_upper_95']:.3f}]")
+        ax.set_xlabel(label)
+        ax.set_ylabel("# bootstrap resamples")
+        ax.legend(frameon=False, fontsize=7.5)
+    fig.suptitle("Bootstrap (resample wells with replacement) confidence intervals", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(cfg.relative_abundance_fig_dir / "10_bootstrap_confidence_intervals.png", dpi=150)
+    plt.close(fig)
+
+
+def _fig11_sensitivity_comparison(cfg):
+    summary = pd.read_csv(cfg.relative_abundance_out_dir / "r11_sensitivity_reliable_pairs.csv").set_index("metric")
+
+    panels = ["pseudo_r2", "dci", "cyclic_frac"]
+    labels = ["Bradley-Terry\npseudo-R²", "Directional\nConsistency Index", "cyclic-triad\nfraction"]
+    all_vals = [summary.loc[p, "all_pairs"] for p in panels]
+    rel_vals = [summary.loc[p, "reliable_pairs_only"] for p in panels]
+
+    x = np.arange(len(panels))
+    width = 0.35
+    fig, ax = plt.subplots(figsize=(8.5, 4.5))
+    ax.bar(x - width / 2, all_vals, width, color=COLOR_BLUE, label="all tested pairs")
+    ax.bar(x + width / 2, rel_vals, width, color=COLOR_CRITICAL, label="excluding hard-to-call pairs")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_title("Sensitivity to excluding hard-to-call pairs", pad=10)
+    fig.text(0.5, 0.925, "near-identical-reference pairs, whose \"ties\" are a measurement ceiling, not biology",
+              ha="center", fontsize=8.5, color=COLOR_TEXT_SECONDARY)
+    for i, (a, r) in enumerate(zip(all_vals, rel_vals)):
+        ax.text(i - width / 2, a, f"{a:.3f}", ha="center", va="bottom", fontsize=8)
+        ax.text(i + width / 2, r, f"{r:.3f}", ha="center", va="bottom", fontsize=8)
+    ax.legend(frameon=False)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.savefig(cfg.relative_abundance_fig_dir / "11_sensitivity_reliable_pairs.png", dpi=150)
+    plt.close(fig)
+
+
+def make_significance_figures(cfg):
+    _fig08_permutation_test(cfg)
+    _fig09_parametric_bootstrap(cfg)
+    _fig10_bootstrap_ci(cfg)
+    _fig11_sensitivity_comparison(cfg)
+    print(f"saved 4 figures -> {cfg.relative_abundance_fig_dir}")
