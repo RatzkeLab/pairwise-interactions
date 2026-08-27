@@ -76,6 +76,24 @@ and genomic features available.
   IDs and the pairwise-experiment well-coordinate strain labels** (see below) -- not yet fully
   verified, start here.
 
+### ✅ RESOLVED 2026-08-27 — the join works for 20260630 only; 20260721 is disqualified
+
+Answered in `20260630/analysis/genomic_ml/` (logic: `shared_pipelines/genomic_ml.py`,
+`validate_strain_join()`). Summary, since the section below records the open question:
+
+- `Well_souce_plate` is the right key and is **unique across all 298 rows**; the three
+  `sequencing_batch` values are just different naming conventions over one 384-well collection
+  (confirmed against `plate_format/Full_384_strain_collection_no_seq_info.csv`, 298/298 match).
+- **20260630 passes**: 76/76 strains map (all batch `Or`), and 16S divergence tracks KO-profile
+  divergence (rho=+0.363, z=+6.0 vs. a permuted-assignment null; 16S <=5bp -> KO Jaccard 0.024,
+  >100bp -> 0.569).
+- **20260721 fails**: 66/86 labels match *by name only*. rho=-0.046, z=-0.7, flat across every
+  16S bin -- indistinguishable from assigning genomes to wells at random. Independently, the two
+  experiments share 18 well labels and only **3 of 18 are the same organism** by their own 16S
+  consensus, so they do not share a namespace with each other either. 20260721's wells belong to
+  a different physical plate and no mapping in the repo recovers it. The suspicion recorded below
+  was correct.
+
 ### ⚠️ The strain-identifier join is the first real problem to solve
 
 The genomic tables key strains as e.g. `BIGb0170`, `CEent1`, `JUb134` -- **not** the short

@@ -14,3 +14,4 @@
 *.csv.gz
 *.paf
 *.pyc
+.tabpfn_token
