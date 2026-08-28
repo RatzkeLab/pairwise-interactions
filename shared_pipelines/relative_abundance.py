@@ -31,7 +31,24 @@ from io_utils import load_layout, load_reference_db, load_reads, norm_edit_dista
 from mapping_validation import find_valley_threshold
 
 # ---- thresholds: about ONT/16S sequencing statistics, not the experiment ----
-AMBIGUOUS_MARGIN_THRESHOLD = 0.02   # margin between dist-to-strain1/2 below which a read is unassignable
+# Read assignment is decided in RAW bp, not normalized distance. The original rule compared a
+# *normalized* margin against 0.02 -- about 28 bp on a 1420 bp read -- so two references 10 bp
+# apart could never produce a margin that large and every one of their reads was filed
+# "ambiguous" by construction, regardless of how clean the data were. Only the positions where
+# the two references differ carry any information; errors elsewhere add equally to both
+# distances and cancel. So a read is assigned to whichever reference is nearer, and is called
+# ambiguous only on a genuine tie.
+AMBIGUOUS_MARGIN_BP = 1             # |bp distance to ref1 - to ref2| below this -> unassignable (i.e. a tie)
+
+# Below this reference separation the assay cannot resolve the pair at all, so the limit is
+# declared up front rather than inferred from a threshold artifact. Calibrated against mono-well
+# ground truth in strain_identity_qc/qc_readassign.py: per-read accuracy is 39% at 1-2 bp, 59%
+# at 3-5 bp, 73% at 6-10 bp, and 92-96% from 11 bp up, against a ~96% ceiling set by mono-well
+# impurity. See that module for why the substitution-model prediction (99.97% at 5 bp) is wrong:
+# ONT error is indel-dominated and concentrated in the homopolymers where near-identical 16S
+# sequences differ.
+MIN_RESOLVABLE_BP = 10
+
 HIGH_UNCERTAINTY_THRESHOLD = 0.3    # mean uncertainty_score above this -> "hard to call" pair
 UNSTABLE_STD_THRESHOLD = 0.15       # std of relative_abundance_a above this -> "unstable" pair
 
@@ -97,19 +114,25 @@ def reference_distances(cfg):
 # ===========================================================================
 
 
-def classify_well_reads(dists, off_target_threshold):
-    """dists: list of (read_id, d1, d2) already-computed distances."""
+def classify_well_reads(dists, off_target_threshold, ambiguous_margin_bp=AMBIGUOUS_MARGIN_BP):
+    """dists: list of (read_id, d1_norm, d2_norm, d1_bp, d2_bp).
+
+    Off-target is judged on normalized distance (is this read from either strain at all?), but
+    the strain1-vs-strain2 call is made in raw bp, because the discriminating signal is a fixed
+    number of bases and does not scale with read length.
+    """
     rows = []
-    for read_id, d1, d2 in dists:
+    for read_id, d1, d2, b1, b2 in dists:
         best = min(d1, d2)
-        margin = abs(d1 - d2)
+        margin_bp = abs(b1 - b2)
         if best > off_target_threshold:
             cls = "off_target"
-        elif margin < AMBIGUOUS_MARGIN_THRESHOLD:
+        elif margin_bp < ambiguous_margin_bp:
             cls = "ambiguous"
         else:
-            cls = "strain1" if d1 < d2 else "strain2"
-        rows.append({"read_id": read_id, "dist_strain1": d1, "dist_strain2": d2, "margin": margin, "read_class": cls})
+            cls = "strain1" if b1 < b2 else "strain2"
+        rows.append({"read_id": read_id, "dist_strain1": d1, "dist_strain2": d2,
+                     "margin_bp": margin_bp, "read_class": cls})
     return rows
 
 
@@ -171,7 +194,10 @@ def compute_interaction_scores(cfg):
             well_rows.append({**base_row, "missing_reference": True})
             continue
 
-        dists = [(read_id, norm_edit_distance(seq, ref1), norm_edit_distance(seq, ref2)) for read_id, seq in load_reads(r.path)]
+        dists = []
+        for read_id, seq in load_reads(r.path):
+            b1, b2 = edit_distance_bp(seq, ref1), edit_distance_bp(seq, ref2)
+            dists.append((read_id, b1 / max(len(seq), len(ref1)), b2 / max(len(seq), len(ref2)), b1, b2))
         classified = classify_well_reads(dists, off_target_threshold)
         for row in classified:
             row["sample_id"] = r.sample_id
@@ -232,7 +258,14 @@ def replicate_stability(cfg):
             "mean_uncertainty_score": g["uncertainty_score"].mean(),
             "mean_off_target_frac": g["off_target_frac"].mean(),
         }
-        row["high_uncertainty_pair"] = row["mean_uncertainty_score"] > HIGH_UNCERTAINTY_THRESHOLD
+        # A pair is unresolvable when its two references are too close for the assay to
+        # separate them -- a property of the reference pair, known in advance. The read-level
+        # uncertainty score is kept as a secondary guard for wells that are messy for other
+        # reasons (poor consensus, heavy off-target).
+        bp = row["ref_pair_bp_dist"]
+        row["below_resolution_limit"] = bool(pd.notna(bp) and bp < MIN_RESOLVABLE_BP)
+        row["high_uncertainty_pair"] = bool(row["below_resolution_limit"]
+                                            or row["mean_uncertainty_score"] > HIGH_UNCERTAINTY_THRESHOLD)
         row["unstable_replicate"] = (n > 1) and (row["std_relative_abundance_a"] > UNSTABLE_STD_THRESHOLD)
         rows.append(row)
 
