@@ -12,6 +12,8 @@ qc_sources.py    load/build the four 16S sources into one long table
 qc_compare.py    agreement (do two sources agree about strain S?) and
                  attribution (if not S, then what?) — strand-, length- and N-aware
 qc_recovery.py   the 16S-based rescue of 20260721, and why it does not work
+qc_readassign.py calibrates the read-assignment resolution limit against mono-well ground
+                 truth — sets MIN_RESOLVABLE_BP in shared_pipelines/relative_abundance.py
 qc_layout.py     plate-handling hypotheses: 96->384 quadrant mix-ups, backwards plate,
                  pick-list off-by-N — 335 candidate transforms, family-wise corrected
 qc_figures.py    four figures
@@ -98,9 +100,49 @@ just **53 groups, one of which holds 181 of them** (single-linkage, so that gian
 partly chaining — but the practical consequence stands). Recovery needs a higher-resolution
 marker (shotgun of the source wells) or physically identifying the plate that was used.
 
+## 7. A separate bug this QC uncovered: the assay was throwing away resolvable pairs
+
+`relative_abundance.classify_well_reads` called a read ambiguous when the **normalized**
+distance margin fell below `AMBIGUOUS_MARGIN_THRESHOLD = 0.02` — about **28 bp** on a 1420 bp
+read. Two references 10 bp apart cannot produce a margin that large, so every one of their reads
+was filed "ambiguous" *by construction* and the pair was flagged unresolvable no matter how
+clean the data. The tell: `mean_uncertainty_score` was exactly 1.000 in every bin below 20 bp.
+
+Only the positions where the two references differ carry information — errors elsewhere add
+equally to both distances and cancel — so the fix is to assign in raw bp and call a read
+ambiguous only on a genuine tie, with a hard floor below which the pair is declared unresolvable
+up front.
+
+**Where the floor belongs, from mono-well ground truth** (`qc_readassign.py`, 68k read-level
+comparisons; a substitution model predicts 99.97% at 5 bp and is wrong, because ONT error is
+indel-dominated and concentrated in the homopolymers where near-identical 16S sequences differ):
+
+| references apart | 1–2 | 3–5 | 6–10 | 11–20 | 21–40 | >40 |
+|---|---|---|---|---|---|---|
+| % reads assigned correctly | 39% | 59% | 73% | **92%** | 96% | 96–97% |
+
+Ceiling is ~96–97%, not 100%, because 20260630's mono wells are not pure — by design they were
+shot against wells believed to be no-growers, some of which grew. So `MIN_RESOLVABLE_BP = 10`.
+
+**Effect on 20260630**, with no new sequencing:
+
+| | before | after |
+|---|---|---|
+| usable pairs | 1090 | **1574** (+44%) |
+| usable in the 10–20 bp band | 2/228 | **228/228** |
+| pairs below the resolution limit | — | 103 (excluded by design) |
+| Bradley-Terry pseudo-R² | 0.831 | **0.866** |
+| directional consistency (DCI) | 0.670 | **0.823** |
+
+The hierarchy fit *improves* with the recovered pairs, which is the evidence that they are real
+signal rather than noise let in by a looser threshold. Previous outputs are preserved in
+`20260630/analysis/relative_abundance/outputs_backup_pre_margin_fix/`.
+
 ## Bottom line
 
 20260630 is sound and stays usable — and the layout search finds `identity` for it at
 family-wise p = 0, so its labels are positively confirmed rather than merely un-refuted. 20260721's interaction measurements are real but their
-strain identities are unknown and not reconstructable from these data — it should not be joined
+strain identities are unknown and not reconstructable from these data. For future designs the
+strain-selection cutoff should be **≥10 bp** minimum pairwise reference separation (the existing
+`corroborated_db_filtered_min10.fasta`, 76 strains), not the 5 bp used for 20260721 — it should not be joined
 to genomic tables, and its per-strain conclusions should not be pooled with 20260630's.

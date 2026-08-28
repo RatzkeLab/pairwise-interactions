@@ -145,7 +145,7 @@ def f04_resolution_limit():
 def make_all():
     C.FIG.mkdir(parents=True, exist_ok=True)
     f01_source_agreement(); f02_identity_distributions(); f03_attribution(); f04_resolution_limit()
-    f05_source_plate_map()
+    f05_source_plate_map(); f06_read_assignment_calibration()
     return sorted(p.name for p in C.FIG.glob("*.png"))
 
 
@@ -216,4 +216,71 @@ def f05_source_plate_map():
                  fontweight="bold")
     fig.tight_layout()
     fig.savefig(C.FIG / "f05_source_plate_map.png", dpi=160)
+    plt.close(fig)
+
+
+def f06_read_assignment_calibration():
+    """How far apart must two references be before a read can be assigned to one of them?
+
+    This sets MIN_RESOLVABLE_BP in the interaction pipeline. Three curves are worth seeing
+    together: what a substitution model predicts (optimistic, and wrong), what mono-well ground
+    truth actually gives, and the ~96% ceiling imposed by mono-well impurity -- 20260630's mono
+    wells were shot against wells believed to be no-growers, some of which grew, so no
+    measurement here can reach 100%.
+    """
+    from math import comb
+    import qc_readassign as RA
+
+    pr = pd.read_csv(C.OUT / "s12_mono_discrimination_reads_20260630.csv.gz")
+    curve = RA.read_level_curve(pr)
+    if not len(curve):
+        return
+
+    eps = 0.047
+    def p_correct(d):
+        a, b = 1 - eps, eps / 3
+        c = 1 - a - b
+        tot = 0.0
+        for nA in range(d + 1):
+            for nB in range(d + 1 - nA):
+                if nA > nB:
+                    tot += comb(d, nA) * comb(d - nA, nB) * a**nA * b**nB * c**(d - nA - nB)
+        return 100 * tot
+
+    fig, ax = plt.subplots(figsize=(9.5, 5.6))
+    x = np.arange(len(curve))
+    ax.bar(x, curve["pct_reads_correct"], 0.62, color=COLOR_BLUE, label="observed (mono-well ground truth)")
+    mids = [np.mean([int(v) for v in r.split("-")]) for r in curve["ref_bp_range"]]
+    ax.plot(x, [p_correct(max(int(round(m)), 1)) for m in mids], "o--", color=COLOR_CRITICAL,
+            lw=1.4, ms=5, label="substitution model (ε=4.7%) — too optimistic")
+    ceiling = curve["pct_reads_correct"].max()
+    ax.axhline(ceiling, color=COLOR_TEXT_SECONDARY, ls=":", lw=1.2)
+    ax.text(0.02, ceiling - 4.5, f"ceiling ≈ {ceiling:.0f}% — mono wells are not pure "
+            "(shot against wells believed to be no-growers, some of which grew)",
+            ha="left", fontsize=8, color=COLOR_TEXT_SECONDARY)
+    ax.axhline(50, color=COLOR_CRITICAL, ls="--", lw=1)
+    ax.text(0.02, 51, "coin flip", fontsize=8, color=COLOR_CRITICAL)
+
+    from importlib import import_module
+    sys_path_added = str(C.ROOT / "shared_pipelines")
+    import sys
+    if sys_path_added not in sys.path:
+        sys.path.insert(0, sys_path_added)
+    floor = import_module("relative_abundance").MIN_RESOLVABLE_BP
+    for i, r in enumerate(curve["ref_bp_range"]):
+        # grey out any bin that REACHES below the floor: 6-10 is mostly excluded even though
+        # its top edge is not
+        if int(r.split("-")[0]) < floor:
+            ax.patches[i].set_color("#c9c8c4")
+    ax.set_xticks(x); ax.set_xticklabels(curve["ref_bp_range"])
+    ax.set_xlabel("bp between the two reference sequences")
+    ax.set_ylabel("% of reads assigned to the correct strain")
+    ax.set_ylim(0, 105)
+    ax.legend(frameon=False, loc="lower right", fontsize=9)
+    ax.set_title(f"Calibrating the resolution limit  (grey = below MIN_RESOLVABLE_BP = {floor}, excluded)")
+    for i, (v, n) in enumerate(zip(curve["pct_reads_correct"], curve["n_read_tests"])):
+        ax.text(i, v + 1.5, f"{v:.0f}%\nn={n:,}", ha="center", fontsize=7.5,
+                color=COLOR_TEXT_SECONDARY)
+    fig.tight_layout()
+    fig.savefig(C.FIG / "f06_read_assignment_calibration.png", dpi=160)
     plt.close(fig)

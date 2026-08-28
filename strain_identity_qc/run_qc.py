@@ -16,6 +16,7 @@ import qc_sources as S
 import qc_compare as Q
 import qc_recovery as R
 import qc_layout as L
+import qc_readassign as RA
 import qc_figures as F
 
 pd.set_option("display.width", 240)
@@ -88,6 +89,13 @@ def main(figs_only=False):
                   f"family-wise z threshold (p=0.05) = {b['familywise_z_threshold_p05']}")
             print(f"  best = {b['transform']}  z = {b['z_vs_null']}  "
                   f"family-wise p = {b['familywise_p_for_best']}")
+
+        # calibrate the read-assignment resolution limit against mono-well ground truth
+        print(f"\n{'='*70}\nread-assignment calibration (mono-well ground truth)\n{'='*70}")
+        e630 = C.EXPERIMENTS["20260630"]
+        pp, pr = RA.mono_ground_truth(
+            e630, C.ROOT / "20260630/analysis/consensus2/strain_consensus_20260630.fasta")
+        print(RA.read_level_curve(pr).to_string(index=False))
 
     print("\nfigures:", F.make_all())
     print(f"done in {time.time()-t0:.0f}s -> {C.OUT}")
