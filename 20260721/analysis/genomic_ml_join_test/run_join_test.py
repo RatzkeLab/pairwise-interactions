@@ -52,10 +52,17 @@ for d in (OUT, FIG):
     d.mkdir(parents=True, exist_ok=True)
 
 N_PERMUTED_MAPPINGS = 5
+TAG = [""]
 MODEL = "xgboost_pca"
 
 
-def load_experiment(exp_name):
+# 20260721's own relative_abundance outputs predate the MIN_RESOLVABLE_BP fix. Passing
+# --refix points this test at the corrected re-run in analysis/relative_abundance_refix/,
+# where 463 more pairs are usable and ~48% of the labels moved.
+REFIX = {"20260721": EXPS / "20260721/analysis/relative_abundance_refix/outputs"}
+
+
+def load_experiment(exp_name, use_refix=False):
     """Build the modeling table for one experiment via the Well_souce_plate join."""
     cfg_dir = EXPS / exp_name / "analysis"
     sys.path.insert(0, str(cfg_dir))
@@ -66,6 +73,9 @@ def load_experiment(exp_name):
     sys.path.remove(str(cfg_dir))
     sys.modules.pop("config", None)
 
+    if use_refix and exp_name in REFIX and REFIX[exp_name].exists():
+        from dataclasses import replace as _replace
+        importlib_cfg = _replace(importlib_cfg, relative_abundance_out_dir=REFIX[exp_name])
     gcfg = gm.GenomicMLConfig(exp_cfg=importlib_cfg, out_dir=OUT / f"_{exp_name}_dataset")
     pairs, summary = gm.build_dataset(gcfg)
     X, summ = gm.strain_feature_matrix(gcfg, pairs)
@@ -85,8 +95,8 @@ def permute_mapping(X, summ, seed):
     return Xp.loc[X.index], sp.loc[summ.index]
 
 
-def run(exp_name, n_repeats=3, quick=False):
-    gcfg, pairs, X, summ, summary = load_experiment(exp_name)
+def run(exp_name, n_repeats=3, quick=False, use_refix=False):
+    gcfg, pairs, X, summ, summary = load_experiment(exp_name, use_refix=use_refix)
     print(f"\n=== {exp_name}: {len(pairs)} pairs, {X.shape[0]} strains, {X.shape[1]} KOs")
 
     variants = [("true_mapping", X, summ, False)]
@@ -169,20 +179,23 @@ def make_figure(df, verdicts):
 
 if __name__ == "__main__":
     quick = "--quick" in sys.argv
+    TAG[0] = "_refix" if "--refix" in sys.argv else ""
     t0 = time.time()
     frames, summaries = [], []
     for exp in ("20260721", "20260630"):
-        f, s = run(exp, n_repeats=1 if quick else 3, quick=quick)
+        f, s = run(exp, n_repeats=1 if quick else 3, quick=quick,
+                   use_refix="--refix" in sys.argv)
         frames.append(f)
         summaries.append(s.assign(experiment=exp))
     df = pd.concat(frames, ignore_index=True)
-    df.to_csv(OUT / "j01_mapping_permutation_results.csv", index=False)
-    pd.concat(summaries, ignore_index=True).to_csv(OUT / "j00_dataset_summaries.csv", index=False)
+    tag = "_refix" if "--refix" in sys.argv else ""
+    df.to_csv(OUT / f"j01_mapping_permutation_results{tag}.csv", index=False)
+    pd.concat(summaries, ignore_index=True).to_csv(OUT / f"j00_dataset_summaries{tag}.csv", index=False)
 
     verdicts = [verdict(df, e, r) for e in ("20260721", "20260630")
                 for r in ("cv_pair", "cv_strain")]
     vdf = pd.DataFrame(verdicts)
-    vdf.to_csv(OUT / "j02_verdicts.csv", index=False)
+    vdf.to_csv(OUT / f"j02_verdicts{tag}.csv", index=False)
     print("\n=== VERDICTS ===")
     print(vdf.round(3).to_string(index=False))
     make_figure(df, verdicts)
