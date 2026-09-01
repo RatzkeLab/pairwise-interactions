@@ -16,7 +16,7 @@ CFG = ExperimentConfig(
     name="20260721",
     exp_base=EXP_BASE,
     layout_csv=EXP_BASE / "setup" / "strain_layout_20260721_plate1_2_swapped.csv",
-    demux_dir=EXP_BASE / "demux" / "unflipped",  # final, complete demux (9120/9120 wells present)
+    demux_dir=EXP_BASE / "data" / "demux" / "unflipped",  # final, complete demux (9120/9120 wells present)
     reference_dbs={
         # independent, external reference built from prior corroborated experiments
         "corroborated_db": Path(
