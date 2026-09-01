@@ -29,6 +29,13 @@ Three candidate columns, in increasing order of how much you should trust them:
   `recommended_target` -- the column to actually use. Populated only where the call is
                     defensible; deliberately blank for ~half the plate.
 
+A fourth, `forced_*`, is produced on request: an UNCONSTRAINED Hungarian assignment that gives
+every label a distinct target no matter how bad the match (down to ~0.73 identity). It is not a
+recommendation -- it is the best complete bijection that exists, useful for asking "if this
+really is a whole-plate permutation, which one?" and for plotting. Read it with
+`forced_identity` in hand, and note `preferred_target` / `preferred_target_taken_by`: the target
+this label would have chosen if it were not already claimed, and the label that outbid it.
+
 Where `best_hit` and `assigned_one_to_one` disagree, the disagreement itself is the finding:
 those labels sit in a cluster of near-identical db entries that 16S cannot split.
 
@@ -139,6 +146,24 @@ def build():
         for l, a in zip(df["label_20260721"], df["assigned_one_to_one"])]
     df["assignment_equals_best_hit"] = df["assigned_one_to_one"] == df["best_hit"]
 
+    # unconstrained Hungarian: force a complete bijection, however poor the fit
+    ri_f, ci_f = linear_sum_assignment(-I.values)
+    forced = {I.index[a]: I.columns[b] for a, b in zip(ri_f, ci_f)}
+    df["forced_target"] = df["label_20260721"].map(forced)
+    df["forced_identity"] = [round(float(I.loc[l, t]), 5) for l, t in
+                             zip(df["label_20260721"], df["forced_target"])]
+    df["forced_bp_dist"] = [float(D.loc[l, t]) for l, t in
+                            zip(df["label_20260721"], df["forced_target"])]
+    df["preferred_target"] = df["best_hit"]                 # what it would take if nothing were claimed
+    df["preferred_identity"] = df["best_hit_identity"]
+    df["forced_equals_preferred"] = df["forced_target"] == df["preferred_target"]
+    df["identity_lost_by_forcing"] = (df["preferred_identity"] - df["forced_identity"]).round(5)
+    # who outbid it for the target it actually wanted
+    taken_by = {v: k for k, v in forced.items()}
+    df["preferred_target_taken_by"] = [
+        None if eq else taken_by.get(t) for eq, t in
+        zip(df["forced_equals_preferred"], df["preferred_target"])]
+
     # how contested is each target under independent best-hit?
     claims = df["best_hit"].value_counts()
     df["n_labels_claiming_best_hit"] = df["best_hit"].map(claims)
@@ -199,6 +224,10 @@ def build():
         {"metric": "one-to-one assigned (constrained)", "value": int(df["assigned_one_to_one"].notna().sum())},
         {"metric": "recommended name reaches genomic tables",
          "value": int(df["recommended_genome"].notna().sum())},
+        {"metric": "forced assignment == preferred", "value": int(df["forced_equals_preferred"].sum())},
+        {"metric": "forced assignment identity < 0.90", "value": int((df["forced_identity"] < 0.90).sum())},
+        {"metric": "min forced identity", "value": round(float(df["forced_identity"].min()), 4)},
+        {"metric": "median forced identity", "value": round(float(df["forced_identity"].median()), 4)},
     ])
     summ.to_csv(OUT / "m03_mapping_summary.csv", index=False)
     print(summ.to_string(index=False))
