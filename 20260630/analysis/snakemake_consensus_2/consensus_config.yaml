@@ -6,7 +6,7 @@
 # Input directory containing FASTQ files (*.fastq or *.fastq.gz)
 # if demultiplexing using minibar, make sure you have reversed backwards reads first
 # input_dir: "demo/unflipped"
-input_dir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/demux2_fastqs"
+input_dir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/demux_fastqs"
 
 # Output directory for all results
 outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/analysis/snakemake_consensus_2/"

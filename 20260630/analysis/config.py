@@ -4,8 +4,6 @@ relative_abundance pipelines (both share this one CFG -- see shared_pipelines/).
 Differs from 20260721 in three structural ways (see project memory /
 shared_pipelines design discussion for why these needed a real decision, not a guess):
   - reads: the user curated and moved the wells to analyze into data/relevant_fastqs
-    (rather than a single "final" demux/unflipped dir -- 20260630 had two parallel demux
-    runs with no canonical one)
   - reference: analysis/consensus2/strain_consensus_20260630.fasta (84 strains) -- the more
     recent/refined of two independent per-strain consensus builds, per the user. There is no
     mono-priority variant here because (per the user) 20260630 has no *true* mono-culture
