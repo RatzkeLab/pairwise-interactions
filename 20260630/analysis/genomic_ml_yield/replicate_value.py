@@ -117,14 +117,18 @@ def main():
             if len(sub) < 150:
                 continue
             r2, rho, _ = cv_strain_r2(gcfg, sub, X, summ, seed=s, n_repeats=2)
-            r2s.append(r2)
+            # at small S the ridge extrapolates wildly on held-out strains and R^2 can blow up
+            # by many orders of magnitude; rho stays bounded and is the honest readout there
+            r2s.append(r2 if np.isfinite(r2) and r2 > -5 else np.nan)
             rhos.append(rho)
             npairs.append(len(sub))
         if r2s:
-            scurve.append({"n_strains": S, "cv_strain_r2": np.mean(r2s), "r2_sd": np.std(r2s),
+            scurve.append({"n_strains": S, "cv_strain_r2": np.nanmean(r2s), "r2_sd": np.nanstd(r2s),
+                           "r2_unstable": bool(np.isnan(r2s).any()),
                            "cv_strain_rho": np.mean(rhos), "mean_n_pairs": np.mean(npairs)})
             print(f"  S={S:3d} strains ({np.mean(npairs):.0f} pairs): "
-                  f"cv_strain R2={np.mean(r2s):+.3f}  rho={np.mean(rhos):.3f}")
+                  f"cv_strain R2={np.nanmean(r2s):+.3f}  rho={np.mean(rhos):.3f}"
+                  f"{'  [R2 unstable -- read rho]' if np.isnan(r2s).any() else ''}")
     scurve = pd.DataFrame(scurve)
 
     rel.to_csv(HERE / "outputs" / "y05_reliability_spearman_brown.csv", index=False)
