@@ -65,6 +65,7 @@ class YieldMLConfig:
     od_dir: Path                     # folder of full-spectrum plate-reader csvs, one per plate
     genomic_dir: Path = GENOMIC_DIR
     feature_table: str = "KEGG_ko_and_strains_table.csv"
+    feature_columns: list = None   # optional subset of feature columns to use
     mapping_csv: str = "mapping_384_well_plate_collection.csv"
     min_prevalence: int = 4
     n_pca: int = 30

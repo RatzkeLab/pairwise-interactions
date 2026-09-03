@@ -73,6 +73,7 @@ class GenomicMLConfig:
     exp_cfg: object                                   # ExperimentConfig of the experiment supplying labels
     genomic_dir: Path = GENOMIC_DIR
     feature_table: str = "KEGG_ko_and_strains_table.csv"
+    feature_columns: list = None   # optional subset of feature columns to use
     mapping_csv: str = "mapping_384_well_plate_collection.csv"
 
     # label filtering
@@ -122,9 +123,22 @@ def load_strain_mapping(gcfg):
 
 
 def load_ko_table(gcfg):
-    """Per-strain KO count matrix, with all-zero (annotation-failed) genomes dropped."""
+    """Per-strain feature count matrix, with all-zero (annotation-failed) genomes dropped.
+
+    Named for KEGG KO, but used for every annotation scheme sharing the 298-strain axis (BiGG,
+    CAZy, KEGG Modules, PFAMs, panX). An optional `feature_columns` on the config restricts to a
+    named subset -- used to compare a pre-selected feature list against a random list of the
+    same size drawn from the same pool.
+    """
     ko = pd.read_csv(gcfg.feature_path, index_col=0)
     ko.index = ko.index.astype(str)
+    cols = getattr(gcfg, "feature_columns", None)
+    if cols is not None:
+        keep = [c for c in cols if c in ko.columns]
+        if len(keep) < len(cols):
+            warnings.warn(f"{len(cols) - len(keep)} requested feature columns absent from "
+                          f"{gcfg.feature_path.name}")
+        ko = ko[keep]
     empty = ko.index[ko.sum(axis=1) == 0]
     return ko.loc[ko.sum(axis=1) > 0], list(empty)
 
@@ -440,12 +454,22 @@ class _Ctx:
         # tree", so a genomic model can be asked whether it beats plain taxonomy
         self.Zp = None
         if phylo is not None:
-            L = phylo.loc[:, self.train_strains]
-            kp = min(gcfg.n_pca, len(self.train_strains) - 1)
-            pca_p = PCA(n_components=kp, random_state=0).fit(L.loc[self.train_strains].values)
+            # the 16S matrix is built for one strain set; a different feature table keeps a
+            # different set of genomes, so intersect rather than index blindly (genomic_ml_yield
+            # already did this -- which is why the yield half of the sweep survived and this
+            # half raised KeyError)
+            tr_p = [t for t in self.train_strains if t in phylo.columns and t in phylo.index]
+            rows_p = [r for r in X.index if r in phylo.index]
+            if len(tr_p) < 3 or not rows_p:
+                self.Zp = None
+                self.fwd, self.rev, self.feature_names = self.design(Z)
+                self._raw = None
+                return
+            L = phylo.loc[rows_p, tr_p]
+            kp = min(gcfg.n_pca, len(tr_p) - 1)
+            pca_p = PCA(n_components=kp, random_state=0).fit(L.loc[tr_p].values)
             self.Zp = _scaled(pd.DataFrame(pca_p.transform(L.values), index=L.index,
-                                           columns=[f"ph{i+1}" for i in range(kp)]),
-                              self.train_strains)
+                                           columns=[f"ph{i+1}" for i in range(kp)]), tr_p)
 
         self.fwd, self.rev, self.feature_names = self.design(Z)
         self._raw = None
