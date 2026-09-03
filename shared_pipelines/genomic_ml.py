@@ -779,7 +779,7 @@ def cross_validate(gcfg, pairs, X, summ, models=None, regimes=("cv_pair", "cv_st
 # 04 -- which genes, and can genomics reproduce the hierarchy at all
 # ===========================================================================
 
-def phylo_distance_matrix(gcfg, pairs, cache=True):
+def phylo_distance_matrix(gcfg, pairs, cache=True, strict=True, out_name=None):
     """16S edit-distance matrix over the modeled strains, from this experiment's own consensus.
 
     Deliberately the same sequences the interaction pipeline used as its mapping reference, so
@@ -787,7 +787,7 @@ def phylo_distance_matrix(gcfg, pairs, cache=True):
     outside tree with its own naming problems.
     """
     import edlib
-    out = gcfg.out_dir / "g04_phylo16s_distance_matrix.csv"
+    out = gcfg.out_dir / (out_name or "g04_phylo16s_distance_matrix.csv")
     strains = sorted(set(pairs["strain_a"]) | set(pairs["strain_b"]))
     if cache and out.exists():
         d = pd.read_csv(out, index_col=0)
@@ -803,8 +803,13 @@ def phylo_distance_matrix(gcfg, pairs, cache=True):
         elif name:
             seqs[name] += line
     missing = [x for x in strains if x not in seqs]
-    if missing:
+    if missing and strict:
         raise KeyError(f"no 16S consensus for {missing[:5]}")
+    if missing:
+        # strict=False: the OD-based analysis covers strains the sequencing never resolved, so
+        # dropping them here keeps the taxonomy control available on the subset that has a
+        # consensus rather than discarding the control entirely
+        strains = [x for x in strains if x in seqs]
 
     D = np.zeros((len(strains), len(strains)))
     for i, a in enumerate(strains):
