@@ -20,6 +20,11 @@ resulting network of pairwise outcomes a real dominance hierarchy or a tangled o
 ```
 pairwise_interaction_experiments/
 ├── shared_pipelines/                     -- all actual logic, shared across experiments
+│   ├── genomic_ml.py                     KO gene content -> who wins a pair (the ML baseline)
+│   ├── genomic_ml_yield.py               KO gene content -> a pair's total OD yield
+│   ├── genomic_ml_plate.py               plate-reader optics ADDED to genomic_ml's features,
+│   │                                      compared fold-paired against it (see
+│   │                                      20260630/analysis/genomic_ml_plate/README.md)
 │   ├── experiment_config.py              ExperimentConfig dataclass
 │   ├── io_utils.py                       generic read/reference IO helpers
 │   ├── mapping_validation.py             read-mapping QC (does a well contain what it should)
@@ -159,3 +164,24 @@ restated here in case a fresh session doesn't load it)
    `<experiment>/analysis/genomic_ml/` (or a combined cross-experiment one, since the ML
    dataset would benefit from pooling both experiments' labeled pairs) would fit the existing
    structure.
+
+
+## Added 2026-09-03 — plate-reader features on top of the genomic model
+
+`shared_pipelines/genomic_ml_plate.py` + `20260630/analysis/genomic_ml_plate/` (read that
+folder's README.md for numbers and controls). Headline: each strain's **monoculture absorbance
+spectrum** adds real predictive power over KO gene content for who-wins — under cv_strain,
+paired R² 0.321 -> 0.491 and winner-called 79.6% -> 87.1% (p ~ 0.003-0.006 over 15 shared
+folds) — while monoculture OD600 adds nothing and the co-culture well's own optics add nothing
+beyond the monocultures. The useful part of the spectrum is essentially one scalar (its slope
+through 600 nm; PC1 = 90% of shape variance), i.e. a cell-morphology/scattering phenotype.
+
+Two things a later session should carry:
+
+- **Every tier is compared on identical folds and reported as a paired delta.** Comparing two
+  rows of a cv_strain summary table is not good enough here — the fold-to-fold SD is larger
+  than every effect being measured.
+- **Open question worth an experiment:** per-strain *source-plate* OD predicts the competitive
+  outcome at r ~ 0.53 (permutation z = +4.7), so either denser inoculum causes winning, or
+  fitness drives both. If the former, part of the measured hierarchy is an artifact of the pick
+  step. Nothing in the existing data separates them.
