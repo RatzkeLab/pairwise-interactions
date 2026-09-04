@@ -1,9 +1,0 @@
-I did also this whole Pareta analysis, which you likely wont need. The reason is that in Ors data one can predict towards novel genomes and novel nutrient sources (and both) the features selection was done on both directions and features were kept when they are important along at least one axis
-CSV panx_and_strains_table_final_post_filtering_strain_names.csv
-
-this file contains for all 298 or Ors strains the copy number for 58,424 GOs that he obtained from panx ( he already removed those that only show up in very few or essentially all organism)
-
-These are the GOs that i used in the end. However, your might be different, Moreover, it turned out that although those features worked best for me, a random set of 221 genes does also a quite ok job, because these genes are basiacally markers for large scale patterns that are distributed across the whole genome
-robust_feature_list.json 
-
-the nutrient cols are the 22 (?) carbon sources that Or used
