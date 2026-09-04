@@ -60,7 +60,8 @@ plt.rcParams.update({
     "font.size": 10, "axes.titlesize": 11, "axes.titleweight": "bold",
 })
 
-GENOMIC_DIR = Path("/home/rl/scripts/karl/Link to Karl/final_genomic_tables")
+from paths import GENOMIC_TABLES
+GENOMIC_DIR = GENOMIC_TABLES     # kept as an alias: several modules and runners import this name
 
 
 @dataclass

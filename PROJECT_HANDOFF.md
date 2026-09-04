@@ -1,3 +1,10 @@
+> **STATUS: largely superseded (2026-08-28).** This was the 2026-08-27 handoff into the
+> genomic-ML work. Its open questions have since been answered — the strain join, the fate of
+> 20260721, and the ML results. **Start at [README.md](README.md), then
+> [FINDINGS.md](FINDINGS.md) and [TRAPS.md](TRAPS.md).** Kept for history: it records what was
+> known and suspected before the analysis, which is useful context for why things were done the
+> way they were.
+
 # Handoff: pairwise_interaction_experiments
 
 Written 2026-08-27 to hand off from a read-mapping/statistics session to a new session
