@@ -5,8 +5,8 @@ trusted and joined naively, exactly as a first-pass analysis would. It is delibe
 *naive* view. What actually happened to 20260721, and everything done to reconstruct it, is in
 [QC_02_RECONSTRUCTION.md](QC_02_RECONSTRUCTION.md).
 
-Regenerate everything here with `python build_qc_matrix.py && python make_figures.py`
-(~4 min; needs the `karl_seq_analysis` conda env). Tables in `outputs/`, figures in
+Regenerate everything here with `python build_qc_matrix.py && python qc_reference_diagnostics.py
+&& python make_figures.py` (~10 min; needs the `karl_seq_analysis` conda env). Tables in `outputs/`, figures in
 `outputs/figures/`.
 
 ---
@@ -124,10 +124,121 @@ Always state which DB a number came from.
 
 ---
 
+## 4b. How usable is each reference, really? (`qc_reference_diagnostics.py`)
+
+The 0.99 cutoff is unfair to `genome_16S`: those sequences come from NGS assemblies while the
+queries are ONT amplicon consensus, so the whole identity distribution is shifted down by
+platform regardless of whether the reference names the right organism. Two threshold-free views
+separate "offset" from "uninformative".
+
+![reference diagnostics](outputs/figures/qc_f4_reference_diagnostics.png)
+
+### Threshold sweep — % of labels agreeing, pair consensus
+
+| reference | 0.95 | 0.97 | 0.98 | 0.99 | 1.00 |
+|---|---|---|---|---|---|
+| 20260630 corroborated_db(185) | 98.0 | 98.0 | 98.0 | **96.0** | 58.0 |
+| 20260630 corroborated_db_min5(87) | 100 | 100 | 100 | **100** | 57.9 |
+| 20260630 genome_16S | 68.3 | 42.7 | 40.2 | **35.4** | 28.0 |
+| 20260721 corroborated_db(185) | 27.2 | 14.8 | 11.1 | **3.7** | 0.0 |
+| 20260721 genome_16S | 21.6 | 7.8 | 2.0 | **2.0** | 0.0 |
+
+Relaxing to 0.95 does rescue `genome_16S` a lot (35% → 68%), confirming a real platform offset:
+its median self-identity is **0.961** versus **1.000** for the corroborated DBs. It does *not*
+rescue 20260721 (3.7% → 27.2% at a threshold so loose it is no longer an identity claim).
+
+### Rank retrieval — is the correct label the *closest* entry? (threshold-free)
+
+| experiment / build / reference | entries | median self-identity | **top-1** | top-5 | median rank |
+|---|---|---|---|---|---|
+| 20260630 pair → corroborated_db(185) | 185 | 1.000 | **50.0%** | 78.0% | 1.5 |
+| 20260630 pair → corroborated_db_min5(87) | 87 | 1.000 | **100%** | 100% | 1.0 |
+| 20260630 pair → genome_16S | 233 | 0.961 | **23.2%** | 41.5% | **22** |
+| 20260721 pair → corroborated_db(185) | 185 | 0.823 | 0.0% | 3.7% | 106 |
+| 20260721 pair → genome_16S | 233 | 0.824 | 0.0% | 3.9% | 116 |
+
+**`genome_16S` is bad on both axes, not just offset.** Even ignoring thresholds entirely, the
+correct label ranks **22nd of 233** on average. So its low support figure is not merely a cutoff
+artifact — the reference genuinely cannot identify these strains, and should not be used as an
+identity reference. (It is also multi-copy, 587 records for 294 strains; the best-matching copy
+per strain is taken, which if anything flatters it.)
+
+**`corroborated_db_min5` is the best identification reference despite being the smallest.**
+100% top-1 for 20260630. Filtering to ≥5 support removes precisely the near-twin entries that
+create ambiguity — smaller, but unambiguous. The trade is coverage: it can only speak to 19 of
+20260630's 84 labels.
+
+### The ceiling: 16S can only do so well in this collection
+
+Mapping each experiment's **mono** consensus onto its **own pair** consensus set — same
+experiment, same platform, same pipeline, different well type, so no cross-reference confound at
+all:
+
+| | n | top-1 | median rank | agree at ≥0.99 |
+|---|---|---|---|---|
+| 20260630 mono → own pair | 21 | **52.4%** | 1.0 | 81.0% |
+| 20260721 mono → own pair | 15 | **66.7%** | 1.0 | 80.0% |
+
+Two things follow.
+
+**A practical ceiling of ~52–67% top-1.** Even querying an experiment against *itself*, 16S puts
+the right label first only about half to two-thirds of the time — because only 35 of 294
+collection strains have a unique 16S. So `corroborated_db`'s 50% top-1 for 20260630 is *at* that
+ceiling: the reference is as good as 16S allows, and the shortfall is the marker, not the DB.
+
+**20260721 is internally consistent.** Its mono and pair wells agree with each other about what
+is in each well (66.7% top-1, 80% at ≥0.99) — as well as 20260630 does. The experiment agrees
+with itself and disagrees only with the outside world, which is exactly the signature of a
+correct experiment on a mislabelled plate.
+
+---
+
 ## 5. What this justifies
 
-**20260630 is usable.** Its labels are supported by an independent external reference at 96%,
-its mono and pair wells agree, and it joins cleanly to the genomic tables (76/76 strains).
+**20260630 is usable, but "76/76 strains join" is a lookup, not a verification.** Every well
+label has a row in `mapping_384_well_plate_collection.csv`; that says nothing about whether the
+genome in that row is the organism in that well. Per strain (`qc06_20260630_per_strain_status.csv`):
+
+| status | n of 83 |
+|---|---|
+| corroborated_db confirms the label (≥0.99) | **48** |
+| ...of which genome_16S *also* confirms | 17 |
+| corroborated_db **contradicts** the label | **2** |
+| untestable — absent from every reference | **33** |
+
+The genome_16S disagreements are most likely genome_16S's fault, not the join's: it is the odd
+one out 16 times against corroborated_db's once (`s04_three_way_concordance`), and §4b shows it
+cannot identify strains at all. But "probably the reference's fault" is not verification.
+
+**Restricting to the 46 corroborated-confirmed strains makes the relative-abundance model
+better, not worse** (`qc07_strain_tier_sensitivity.csv`):
+
+| target | tier | strains | pairs | R² | ρ |
+|---|---|---|---|---|---|
+| relative abundance | all | 74 | 1465 | 0.321 | 0.576 |
+| relative abundance | **corroborated-confirmed** | 46 | 568 | **0.364** | **0.721** |
+| yield | all | 88 | 3828 | 0.233 | 0.568 |
+| yield | corroborated-confirmed | 46 | 1035 | −0.132 | 0.422 |
+
+For relative abundance this is a real gain, not a sample-size effect: that target's strain
+learning curve is flat past ~45 strains, so losing 74→46 costs nothing by itself. The unverified
+strains were adding noise. **Default the relative-abundance analysis to this subset.**
+
+For yield the comparison is **confounded and uninterpretable**: yield's strain curve is steep
+(R² −0.357 at 45 strains, +0.265 at 88), so halving the strain count is expected to hurt
+regardless of verification. It says nothing about whether yield's unverified strains are bad.
+
+The strictest tier (17 strains confirmed by two references) is too small to fit at all, so
+"confirmed twice" is not an achievable standard with this collection. The **2 contradicted
+strains should be dropped outright**; the **33 untestable ones are neither confirmed nor
+refuted** and no reanalysis of existing data can settle them.
+
+The aggregate join validation (16S divergence vs KO-profile divergence, ρ=+0.363, z=+6.0 against
+a permuted-assignment null) still holds — but it is an *aggregate* test: the mapping is right on
+average, which is not the same as any particular strain being right.
+
+Its mono and pair wells agree, and its labels are supported by an independent external reference
+at 96% where testable.
 
 **20260721 is not usable for anything that depends on strain identity.** Its wells contain real,
 clean, single organisms — they are simply not the ones the labels claim. Interaction *outcomes*
@@ -143,4 +254,9 @@ labels), so the run is not worthless; only the mapping from well to organism is 
 | `outputs/qc01_consensus_vs_reference_detail.csv` | one row per (experiment, build, reference, label) with best match and identities |
 | `outputs/qc02_consensus_vs_reference_summary.csv` | verdict counts per cell |
 | `outputs/qc02b_two_definitions.csv` | the same cells under both definitions of "supported" |
-| `build_qc_matrix.py`, `make_figures.py` | regenerate the above |
+| `outputs/qc03_reference_ranks.csv` | per label: self-identity, best match, and the RANK of the correct label |
+| `outputs/qc04_rank_retrieval.csv` | top-1/3/5 and median rank per reference |
+| `outputs/qc05_threshold_sweep.csv` | % agreeing at 0.95 ... 1.00 |
+| `outputs/qc06_20260630_per_strain_status.csv` | per-strain verification status for 20260630 |
+| `outputs/qc07_strain_tier_sensitivity.csv` | do the ML conclusions survive stricter strain sets |
+| `build_qc_matrix.py`, `qc_reference_diagnostics.py`, `qc_sensitivity_strain_tiers.py`, `make_figures.py` | regenerate the above |

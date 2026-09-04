@@ -78,3 +78,39 @@ ax.set_ylabel("labels"); ax.legend(frameon=False, fontsize=8.5)
 ax.set_title("The 18 labels both experiments share\nonly 3 are the same organism", fontsize=10)
 fig.tight_layout(); fig.savefig(FIG / "qc_f3_definitions_and_crossexp.png", dpi=160); plt.close(fig)
 print("wrote:", *[p.name for p in sorted(FIG.glob('*.png'))], sep="\n  ")
+
+# --- f4: reference diagnostics -- threshold sweep and rank retrieval
+sw = pd.read_csv(HERE / "outputs" / "qc05_threshold_sweep.csv"); sw["experiment"]=sw["experiment"].astype(str)
+rk = pd.read_csv(HERE / "outputs" / "qc04_rank_retrieval.csv"); rk["experiment"]=rk["experiment"].astype(str)
+fig, axes = plt.subplots(1, 3, figsize=(17, 5))
+STY = {"corroborated_db(185)": "-", "corroborated_db_min5(87)": "--",
+       "genome_16S": ":", "own_pair_consensus": "-."}
+ax = axes[0]
+for (e, r), s in sw[sw.consensus == "pair"].groupby(["experiment", "reference"]):
+    ax.plot(s.threshold, s.pct_label_agrees, STY.get(r, "-"), color=C[e], lw=2,
+            label=f"{e} {r.split('(')[0]}")
+ax.set_xlabel("identity threshold"); ax.set_ylabel("% of labels agreeing")
+ax.legend(fontsize=7, frameon=False); ax.set_title(
+    "A. Threshold sweep (pair consensus)\nrelaxing the cutoff rescues genome_16S...", fontsize=10)
+ax = axes[1]
+d = rk[rk.consensus == "pair"]
+x = np.arange(len(d)); 
+ax.bar(x, d.top1, color=[C[e] for e in d.experiment])
+ax.set_xticks(x); ax.set_xticklabels([f"{r.experiment[-4:]}\n{r.reference.split('(')[0][:14]}"
+                                      for r in d.itertuples()], fontsize=7.5)
+ax.set_ylabel("% correct label ranked FIRST"); ax.set_ylim(0, 105)
+for i, r in enumerate(d.itertuples()):
+    ax.text(i, r.top1 + 2, f"rank\n{r.median_rank:.0f}", ha="center", fontsize=7,
+            color=COLOR_TEXT_SECONDARY)
+ax.set_title("B. Rank retrieval (threshold-free)\n...but it still cannot rank the right one first",
+             fontsize=10)
+ax = axes[2]
+d = rk[rk.reference == "own_pair_consensus"]
+b = ax.bar([f"{r.experiment}\nmono→own pair" for r in d.itertuples()], d.top1,
+           color=[C[e] for e in d.experiment])
+ax.bar_label(b, labels=[f"n={int(n)}" for n in d.n_testable], fontsize=8, padding=2)
+ax.set_ylim(0, 105); ax.set_ylabel("% correct label ranked FIRST")
+ax.set_title("C. Internal consistency\nboth experiments agree with THEMSELVES", fontsize=10)
+fig.suptitle("How usable is each reference for identifying a strain?", fontweight="bold")
+fig.tight_layout(); fig.savefig(FIG / "qc_f4_reference_diagnostics.png", dpi=160); plt.close(fig)
+print("  qc_f4_reference_diagnostics.png")
