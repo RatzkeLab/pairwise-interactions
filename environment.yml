@@ -1,0 +1,67 @@
+# Conda environment for pairwise_interaction_experiments.
+#
+#   conda env create -f environment.yml
+#   conda activate pairwise_interaction_env
+#
+# Versions are those the analyses were actually run and validated against (2026-08-28) rather
+# than "latest" — numpy 2.x and scikit-learn 1.8 in particular are not drop-in compatible with
+# older pins.
+#
+# TIERS. The core tier runs everything in FINDINGS.md. The other two are for pipeline stages
+# that were NOT re-run in this work and whose tools are NOT currently installed in the working
+# environment — install them only if you need to rebuild consensus sequences or re-execute the
+# collaborator's original notebook.
+
+name: pairwise_interaction_env
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  # ---- core: everything in FINDINGS.md, all shared_pipelines modules ----------------------
+  - python=3.11
+  - pandas=2.3
+  - numpy=2.3
+  - scipy=1.16
+  - scikit-learn=1.8
+  - matplotlib=3.10
+  - seaborn=0.13
+  - biopython=1.86
+  - statsmodels=0.14
+  - xgboost=3.2
+
+  # read mapping / alignment used by mapping_validation and relative_abundance
+  - minimap2=2.30
+  - mafft=7.525
+  - samtools=1.22
+
+  # notebooks are the human-readable reports; nbclient re-executes them headlessly
+  - ipython
+  - jupyter
+  - nbclient
+  - nbformat
+  - tqdm
+
+  # ---- consensus building (snakemake_consensus*/) — NOT installed by default ---------------
+  # Needed only to regenerate per-strain 16S consensus sequences from reads. The existing
+  # consensus FASTAs are committed, so most work does not need these.
+  # - snakemake
+  # - seqtk
+  # - nanofilt
+  # - racon
+  # - hdbscan
+
+  # ---- collaborator's original feature-selection notebook — NOT installed by default -------
+  # go_feature_selection/pipeline_robust.ipynb only. Its method is ported, without these
+  # dependencies, to 20260630/analysis/feature_sweep/nested_selection.py.
+  # - shap
+  # - optuna
+
+  - pip
+  - pip:
+      # not available on conda-forge
+      - edlib==1.3.9.post1
+      # OPTIONAL: hosted TabPFN. The ONLY component that sends data off-machine.
+      # Requires a token in $TABPFN_TOKEN or <analysis>/.tabpfn_token (mode 600, never commit).
+      # TabPFN was competitive but never best — nothing in FINDINGS.md depends on it.
+      - tabpfn-client==0.4.2

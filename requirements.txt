@@ -1,0 +1,19 @@
+# pip-only equivalent of environment.yml's core tier.
+# NOTE: minimap2, mafft and samtools are NOT pip-installable and must be provided separately
+# (conda/bioconda or system packages). mapping_validation.py and relative_abundance.py need them.
+pandas==2.3.3
+numpy==2.3.5
+scipy==1.16.3
+scikit-learn==1.8.0
+matplotlib==3.10.8
+seaborn==0.13.2
+biopython==1.86
+statsmodels==0.14.5
+xgboost==3.2.0
+edlib==1.3.9.post1
+nbclient==0.10.2
+nbformat==5.10.4
+ipython==9.7.0
+tqdm==4.67.1
+# optional, sends data off-machine — see environment.yml
+tabpfn-client==0.4.2
