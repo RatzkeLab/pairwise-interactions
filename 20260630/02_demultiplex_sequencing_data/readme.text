@@ -1,0 +1,5 @@
+the demultiplex folder mostly contains the config and output from running the demultiplex pipeline in snakemake on the sequencing data
+
+for now, demux_progression are included as a reference for mid-sequencing run demultiplexing, and is preserved for now for possible troubleshooting, but will be removed later
+
+as mentioned before, only odd numbered plates from 1 through 19 were included in sequencing this time, since 10 plates was the max we could sequence in one run.
