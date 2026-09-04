@@ -15,4 +15,4 @@
 *.paf
 *.pyc
 .tabpfn_token
-pipeline_robust.ipynb
+*pipeline_robust.ipynb
