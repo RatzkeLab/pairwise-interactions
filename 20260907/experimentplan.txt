@@ -1,0 +1,20 @@
+
+experiment design for a new experiment (20260907) based on the last round of experimental design (/home/rl/scripts/karl/pairwise_interaction_experiments/20260721/01_setup/experiment_setup.ipynb)
+(keep ipynb format where possible, though separate scripts or functions that get imported into the ipynb are also fine)
+
+based on analysis on the last 2 runs of interactions, it's becoming clear that genomes, not interactions are the limiting factor for increasing ml performance. from that perspective, i think it's worth trying to sequence the whole collection, and at least 3-5 interactions per strain. i would like to cap experiment design at 8 primary plates since doing pcr on 10 plates was quite the effort. (i'm o.k. to run more than 8 plates, maybe as many as 24, with the rest being measured in the plate reader then frozen and having the possibility of sequencing them later). 
+
+i would like to sequence everything at least once, maybe twice as an individual strain (so called "mono" wells) (to come up with a reference sequence that i feel really confident about), and then at least 2-3 times with other strains. a few random pairwise interactions should get technical replicates (maybe up to 5 replicates) to spot check reproducibility across samples/plates, but the rest will have to be n=1. 
+
+unfortunately, since i cannot trust even the master plate to not have contaminations, we will need at least one mono well sampled for each strain.
+
+and now comes the part where the existing database is relevant: when chosing which pairs to measure, pick pairs that we think are 'likely' to be more than 15 bp apart. 
+
+for strains where no reference 16s exists whatsoever, just pick 1-2 random pairs to test, and only do one mono well (no replicates), since these strains likely are just hard-to-lyse/sequence and thus a waste of experimental space to keep trying on.
+
+note: i'm going to take a fresh copy of the master plate, so hopefully contamination is less of an issue, (though i'm open to any tips in technique etc for avoiding contamination in the future) (main tools are deepwell 96 well plates for culture, echo 384 well plates for transferring, and then i use viaflo, echo, and pcr for the readout, with plate seals and lids)
+
+bonus:
+a comment abuot yield (200 vs 100 nL for mono vs pairwise) reminds me something: a previous analysis run noted that mono yield may predict pairwise yield and the two are not dis-entanglable under current experiment setup. would 2 echo source plates (one with half of the strains more diluted than the other, for example) or setting up some replicates with different echo shooting amounts maybe in addition to the 5 exact technical repliates, answer this question? or would an additional/separate more extensive experiment be needed to pursue that line of questioning properly. (adding a few wells to test initial innoculation ratios effect on interaction outcome would cost me nothing in terms of wet-lab handling, and would only cost us that many pairs on the analysis side)  .... in addition i'm thinking for the strains that have mono replicates we could try one with 100nL and one with 200 nL and see if there's a broadly measurable effect in mono. 
+
+what do you think? 
