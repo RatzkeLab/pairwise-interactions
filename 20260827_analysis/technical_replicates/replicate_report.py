@@ -37,24 +37,25 @@ import pandas as pd
 from scipy.stats import spearmanr, pearsonr
 
 HERE = Path(__file__).resolve().parent
-EXPS = HERE.parent
+EXPS = HERE.parents[1]          # pairwise_interaction_experiments/
 OUT = HERE / "outputs"
 FIG = OUT / "figures"
 for d in (OUT, FIG):
     d.mkdir(parents=True, exist_ok=True)
-sys.path.insert(0, str(EXPS / "shared_pipelines"))
-from genomic_ml import COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD
+sys.path.insert(0, str(EXPS / "shared_scripts"))
+from genomic_ml import (COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD,
+                        _savefig)
 
-PR = Path("/home/rl/scripts/karl/Link to Karl/plate_reader_csvs/data_ascii/Karl_2026")
+PR = Path("/home/rl/scripts/karl/data_links/raw/plate_reader_csvs/data_ascii/Karl_2026")
 WAVELENGTHS = np.arange(350, 350 + 61 * 10, 10)
 
 CONFIG = {
     "20260630": {"od": PR / "Karl_20260704_OD_Full",
-                 "layout": EXPS / "20260630/setup/strain_layout_20260630.csv",
-                 "seq": EXPS / "20260630/analysis/relative_abundance/outputs"},
+                 "layout": EXPS / "20260630/01_setup/strain_layout_20260630.csv",
+                 "seq": EXPS / "20260630/05_engineer_relative_abundances/relative_abundance/outputs"},
     "20260721": {"od": PR / "Karl_20260723_OD_Full",
-                 "layout": EXPS / "20260721/setup/strain_layout_20260721_plate1_2_swapped.csv",
-                 "seq": EXPS / "20260721/analysis/relative_abundance_refix/outputs"},
+                 "layout": EXPS / "20260721/01_setup/strain_layout_20260721_plate1_2_swapped.csv",
+                 "seq": EXPS / "20260721/05_engineer_relative_abundance/relative_abundance_refix/outputs"},
 }
 
 
@@ -105,10 +106,18 @@ def split_half(values, groups, plates=None):
     g = df.groupby("g")["v"].agg(list)
     g = g[g.map(len) >= 2]
     if len(g) < 20:
-        return dict(spearman=np.nan, pearson=np.nan, n_pairs=0, median_abs_diff=np.nan)
+        return dict(spearman=np.nan, pearson=np.nan, r2=np.nan, n_pairs=0,
+                    median_abs_diff=np.nan)
     x = np.array([v[0] for v in g])
     y = np.array([np.mean(v[1:]) for v in g])
+    # r2 is the variance of y explained by taking x as a literal prediction of it -- NOT
+    # pearson**2, which would forgive an offset or a slope. Scored against the mean (the usual
+    # convention), because the quantities here are not zero-centred: relative abundance lives
+    # in [0,1] around 0.5, so genomic_ml's "vs. predicting no winner" denominator is meaningless
+    # for it. That also makes this column comparable ACROSS ROWS here but NOT to genomic_ml's
+    # R² -- for that, see ml_target_ceiling.py, which works on the ML target itself.
     return dict(spearman=float(spearmanr(x, y)[0]), pearson=float(pearsonr(x, y)[0]),
+                r2=float(1 - np.sum((y - x) ** 2) / np.sum((y - y.mean()) ** 2)),
                 n_pairs=int(len(g)), median_abs_diff=float(np.median(np.abs(x - y))))
 
 
@@ -213,8 +222,7 @@ def make_figures(od_df, seq_df, spectra, matched=None):
     fig.suptitle("Technical-replicate reproducibility — the baseline for any cross-experiment "
                  "comparison", fontweight="bold")
     fig.tight_layout()
-    fig.savefig(FIG / "t01_replicate_reproducibility.png", dpi=160)
-    plt.close(fig)
+    _savefig(fig, FIG, "t01_replicate_reproducibility")
 
 
 def matched_comparison():
