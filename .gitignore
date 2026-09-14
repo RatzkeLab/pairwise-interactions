@@ -4,6 +4,7 @@
 *.log
 *.html
 *.png
+*.svg
 *.fasta
 *no_clusters.txt
 *no_split.txt

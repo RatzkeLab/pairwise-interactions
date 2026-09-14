@@ -61,6 +61,21 @@ plt.rcParams.update({
 })
 
 from paths import GENOMIC_TABLES
+
+# Figures default to SVG: these are read zoomed in (f02's cv_strain panel is ~800 overlapping
+# points) and end up in slides and the manuscript, where a raster at dpi=160 is already too
+# coarse to rescale. Pass fmt="png" to make_all_figures for a quick raster.
+FIG_FORMAT = "svg"
+
+
+def _savefig(fig, fd, stem, fmt=None, dpi=160):
+    """Save one figure as <stem>.<fmt> and close it. dpi is ignored for vector output."""
+    fmt = fmt or FIG_FORMAT
+    out = fd / f"{stem}.{fmt}"
+    fig.savefig(out, dpi=dpi) if fmt == "png" else fig.savefig(out)
+    plt.close(fig)
+    return out
+
 GENOMIC_DIR = GENOMIC_TABLES     # kept as an alias: several modules and runners import this name
 
 
@@ -928,8 +943,9 @@ def genome_to_strength(gcfg, pairs, X, summ, phylo=None, n_splits=10, seed=0, n_
 # 05 -- figures
 # ===========================================================================
 
-def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df):
+def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df, fmt=None):
     fd = gcfg.fig_dir
+    fmt = fmt or FIG_FORMAT
 
     # f01 -- model comparison across the two regimes
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.8))
@@ -965,8 +981,7 @@ def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df):
         ax.set_xlabel("R² vs. predicting no winner  (mean ± sd over folds)")
     fig.suptitle("Predicting log2 abundance ratio from KEGG KO content", fontweight="bold")
     fig.tight_layout()
-    fig.savefig(fd / "f01_model_comparison.png", dpi=160)
-    plt.close(fig)
+    _savefig(fig, fd, "f01_model_comparison", fmt)
 
     # f02 -- predicted vs observed for the best genomic model in each regime
     fig, axes = plt.subplots(1, 2, figsize=(11, 5.2))
@@ -981,12 +996,17 @@ def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df):
         lim = max(np.abs(p["y_true"]).max(), np.abs(p["y_pred"]).max()) * 1.05
         ax.plot([-lim, lim], [-lim, lim], color=COLOR_TEXT_SECONDARY, lw=1, ls="--")
         ax.axhline(0, color=COLOR_GRID, lw=1); ax.axvline(0, color=COLOR_GRID, lw=1)
+        # POOLED over folds, so these are not the summ_df numbers: summ_df scores each fold
+        # separately and averages, which for a bounded nonlinear statistic is not the same
+        # quantity (cv_strain two_stage_ridge: pooled ρ 0.596 vs mean-of-folds 0.577). Quote
+        # summ_df in text -- it is the one carrying a fold SD; this is the scatter's own score.
         rho = spearmanr(p["y_pred"], p["y_true"])[0]
-        ax.set_title(f"{regime} -- {best}\nSpearman ρ = {rho:.2f}, n = {len(p)}")
+        r2 = 1 - np.sum((p["y_true"] - p["y_pred"]) ** 2) / np.sum(p["y_true"] ** 2)
+        ax.set_title(f"{regime} -- {best}\npooled ρ = {rho:.2f}, "
+                     f"pooled R² = {r2:.2f} vs. no winner\nn = {len(p)}")
         ax.set_xlabel("predicted log2 ratio (a/b)"); ax.set_ylabel("observed log2 ratio (a/b)")
     fig.tight_layout()
-    fig.savefig(fd / "f02_predicted_vs_observed.png", dpi=160)
-    plt.close(fig)
+    _savefig(fig, fd, "f02_predicted_vs_observed", fmt)
 
     # f03 -- per-strain competitiveness predicted from genome alone (leave-strains-out)
     if len(strength_df):
@@ -1005,8 +1025,7 @@ def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df):
         fig.suptitle("Can a genome alone say how competitive a strain is?  (point size = pairs tested)",
                      fontweight="bold")
         fig.tight_layout()
-        fig.savefig(fd / "f03_strength_from_genome.png", dpi=160)
-        plt.close(fig)
+        _savefig(fig, fd, "f03_strength_from_genome", fmt)
 
     # f04 -- sign accuracy: does the model at least call the winner?
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -1027,7 +1046,6 @@ def make_all_figures(gcfg, summ_df, fold_df, pair_df, strength_df, ceiling_df):
     ax.set_ylim(0, 1); ax.legend(frameon=False)
     ax.set_title("Which strain wins -- the question a bench scientist actually asks")
     fig.tight_layout()
-    fig.savefig(fd / "f04_sign_accuracy.png", dpi=160)
-    plt.close(fig)
+    _savefig(fig, fd, "f04_sign_accuracy", fmt)
 
-    return sorted(p.name for p in fd.glob("*.png"))
+    return sorted(p.name for p in fd.glob(f"*.{fmt}"))

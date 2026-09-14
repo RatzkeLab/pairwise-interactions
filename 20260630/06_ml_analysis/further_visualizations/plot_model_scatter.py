@@ -16,6 +16,7 @@ fold separately and averages. Both are printed on each panel so the two can neve
     python plot_model_scatter.py                                  # xgboost_raw_ko + two_stage_ridge, cv_strain
     python plot_model_scatter.py --models xgboost_pca --regime cv_pair
     python plot_model_scatter.py --models all
+    python plot_model_scatter.py --format png              # raster, for a quick look
 """
 
 import argparse
@@ -81,6 +82,8 @@ def main():
                     help="comma-separated model names, or 'all'")
     ap.add_argument("--regime", default="cv_strain", choices=["cv_strain", "cv_pair"])
     ap.add_argument("--src", default=str(SRC), help="directory holding g03_cv_*.csv")
+    ap.add_argument("--format", default=gm.FIG_FORMAT, choices=["svg", "png"],
+                    help="vector by default, matching the main report")
     args = ap.parse_args()
 
     src = Path(args.src)
@@ -110,15 +113,13 @@ def main():
     fig.tight_layout()
 
     tag = "_".join(models) if len(models) <= 3 else f"{len(models)}models"
-    png = OUT / f"fv01_predicted_vs_observed_{args.regime}_{tag}.png"
-    fig.savefig(png, dpi=160)
-    plt.close(fig)
+    img = gm._savefig(fig, OUT, f"fv01_predicted_vs_observed_{args.regime}_{tag}", args.format)
 
     tbl = pd.DataFrame(rows)
     csv = OUT / f"fv01_pooled_metrics_{args.regime}.csv"
     tbl.to_csv(csv, index=False)
     print(tbl.round(3).to_string(index=False))
-    print(f"\n-> {png}\n-> {csv}")
+    print(f"\n-> {img}\n-> {csv}")
 
 
 if __name__ == "__main__":
