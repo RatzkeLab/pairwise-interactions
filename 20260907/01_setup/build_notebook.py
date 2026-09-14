@@ -59,6 +59,23 @@ TECHREP_REPLICATES = 5    # each on a different plate
 MIN_SEPARATION_BP  = 15   # a pair must be at least this far apart to be worth a well
 SEPARABILITY_MODE  = "conservative"   # min across all sources; see separability.py
 
+# --- inoculum arms --------------------------------------------------------
+# A monoculture has always been 2x100 nL of the same strain while each member of
+# a pair gets 100 nL, so the mono was never the matched control for the pair.
+# Giving one of a strain's two monos 100 nL fixes that AND buys a within-strain
+# 2x density contrast across 376 strains for free.
+MONO_VOLUMES = (200, 100)   # the first keeps the 20260721 volume for comparability
+
+# Ratio titration: total inoculum held at 200 nL, only the split varies, so the
+# 100:100 level IS the standard condition. Multiples of 25 nL (the Echo minimum
+# for 384PP); 25:175 is a 7x ratio each way, ~49x span end to end.
+RATIO_LEVELS   = [(25, 175), (50, 150), (100, 100), (150, 50), (175, 25)]
+N_RATIO_SERIES = 50
+
+# Density titration: ratio held at 1:1, total inoculum varied 4x.
+DENSITY_LEVELS   = [(50, 50), (100, 100), (200, 200)]
+N_DENSITY_SERIES = 30
+
 N_PLATES = N_PRIMARY_PLATES + N_EXTENSION_PLATES
 PRIMARY_CAPACITY = N_PRIMARY_PLATES * WELLS_PER_PLATE
 TOTAL_CAPACITY   = N_PLATES * WELLS_PER_PLATE
@@ -150,6 +167,61 @@ ax[1].set_xlabel("16S separation (bp, clipped at 400)"); ax[1].set_ylabel("pairs
 ax[1].set_title("Pairwise separation across the collection")
 plt.tight_layout(); plt.show()''')
 
+md(r'''## Step 2b - pairs for the inoculum arms
+
+A previous analysis found that monoculture yield predicts pairwise outcome, and
+that preculture density predicts the winner - but "denser inoculum gives a head
+start" and "a fitter strain grows dense everywhere AND wins" both fit that, and
+the standard design cannot separate them.
+
+The discriminating quantity is the **slope of final log-ratio against initial
+log-ratio**. Slope near 0 means the outcome is set by fitness and the starting
+ratio is irrelevant; slope near 1 means initial conditions simply carry through
+and the assay is largely reporting the inoculum; in between means both. A
+titration over a ~49x span of starting ratios measures that slope directly.
+
+Pairs come from 20260630, whose well labels join correctly to the collection
+(20260721's do not - confirmed source-plate mix-up), and are **stratified by
+prior outcome**: strong-winner pairs are where a head start could plausibly flip
+the result, near-neutral pairs are where a ratio effect is easiest to detect.
+Both strata are needed, since a null result in only one would be uninformative.''')
+
+code(r'''PRIOR = ("/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/"
+         "05_engineer_relative_abundances/relative_abundance/outputs/"
+         "r03_pair_replicate_stats.csv")
+if not os.path.exists(PRIOR):
+    PRIOR = PRIOR.replace("/outputs/", "/outputs_backup_pre_margin_fix/")
+
+prior = pd.read_csv(PRIOR)
+prior = prior[~prior.high_uncertainty_pair]
+prior = prior[prior.strain_a.isin(strains) & prior.strain_b.isin(strains)]
+# and still resolvable under the current, much better references
+prior = prior[[eligible(a, b) for a, b in zip(prior.strain_a, prior.strain_b)]]
+prior["abs_log2"] = prior.mean_log2_ratio_a_over_b.abs()
+print(f"{len(prior)} prior pairs usable: both strains in the collection, "
+      f">= {MIN_SEPARATION_BP} bp apart, not high-uncertainty")
+
+strong  = prior[prior.abs_log2 > 3]
+neutral = prior[prior.abs_log2 < 1]
+print(f"  strong winner (|log2 ratio| > 3): {len(strong)}")
+print(f"  near neutral  (|log2 ratio| < 1): {len(neutral)}")
+
+def stratified(n):
+    """Half strong-winner, half near-neutral, sampled without replacement."""
+    k = n // 2
+    a = strong.sample(min(k, len(strong)), random_state=int(rng.integers(1e6)))
+    b = neutral.sample(min(n - len(a), len(neutral)), random_state=int(rng.integers(1e6)))
+    return [(r.strain_a, r.strain_b) for r in pd.concat([a, b]).itertuples()]
+
+ratio_series   = stratified(N_RATIO_SERIES)
+density_series = stratified(N_DENSITY_SERIES)
+print(f"\nratio titration:   {len(ratio_series)} pairs x {len(RATIO_LEVELS)} levels "
+      f"= {len(ratio_series) * len(RATIO_LEVELS)} wells")
+print(f"density titration: {len(density_series)} pairs x {len(DENSITY_LEVELS)} levels "
+      f"= {len(density_series) * len(DENSITY_LEVELS)} wells")
+print(f"strains involved in the inoculum arms: "
+      f"{len({s for p in ratio_series + density_series for s in p})}")''')
+
 md(r'''## Step 3 - allocate content
 
 Budget, in priority order:
@@ -167,12 +239,17 @@ All of 1-3 land in plates 1-8. Plates 9+ carry additional distinct pairs only.''
 
 code(r'''n_mono = MONO_PER_STRAIN * len(regular) + MONO_LIMITED * len(limited)
 n_techrep_wells = N_TECHREP_PAIRS * TECHREP_REPLICATES
-n_primary_pairs = PRIMARY_CAPACITY - n_mono - n_techrep_wells
+n_ratio_wells   = len(ratio_series) * len(RATIO_LEVELS)
+n_density_wells = len(density_series) * len(DENSITY_LEVELS)
+n_primary_pairs = (PRIMARY_CAPACITY - n_mono - n_techrep_wells
+                   - n_ratio_wells - n_density_wells)
 n_extension_pairs = N_EXTENSION_PLATES * WELLS_PER_PLATE
 
 print(f"primary capacity       {PRIMARY_CAPACITY}")
 print(f"  monocultures         {n_mono}   ({MONO_PER_STRAIN}x{len(regular)} + {MONO_LIMITED}x{len(limited)})")
 print(f"  technical replicates {n_techrep_wells}   ({N_TECHREP_PAIRS} pairs x {TECHREP_REPLICATES})")
+print(f"  ratio titration      {n_ratio_wells}   ({len(ratio_series)} pairs x {len(RATIO_LEVELS)})")
+print(f"  density titration    {n_density_wells}   ({len(density_series)} pairs x {len(DENSITY_LEVELS)})")
 print(f"  distinct pairs       {n_primary_pairs}")
 print(f"extension capacity     {n_extension_pairs}   (distinct pairs; plate reader + freeze)")
 assert n_primary_pairs > 0, "monos + replicates already exceed the primary plates"
@@ -261,10 +338,14 @@ def take(plate):
 primary_plates = list(range(1, N_PRIMARY_PLATES + 1))
 
 # --- monocultures: the replicates of a strain go on different plates ---------
+# The two monos of a strain get different total inoculum (200 and 100 nL). The
+# 200 nL one matches 20260721 so the series stays comparable; the 100 nL one is
+# the properly matched control for a pair member, and the two together give a
+# within-strain density contrast at no extra well cost.
 mono_groups = [[s] * (MONO_LIMITED if s in limited else MONO_PER_STRAIN) for s in strains]
 for placed in design.spread_across_plates(mono_groups, primary_plates, rng):
-    for s, p in placed:
-        content[take(p)] = ("mono", s, s)
+    for k, (s, p) in enumerate(placed):
+        content[take(p)] = ("mono", s, s, MONO_VOLUMES[k % len(MONO_VOLUMES)], 0)
 
 # --- technical replicates: each copy on a different plate --------------------
 techrep_idx = set(rng.choice(len(pairs), size=N_TECHREP_PAIRS, replace=False).tolist())
@@ -274,19 +355,43 @@ placements = design.spread_across_plates(
     [[p] * TECHREP_REPLICATES for p in techrep_pairs], primary_plates, rng)
 for (a, b), placed in zip(techrep_pairs, placements):
     for _, p in placed:
-        content[take(p)] = ("techrep", a, b)
+        content[take(p)] = ("techrep", a, b, 100, 100)
+
+# --- inoculum titrations -----------------------------------------------------
+# All levels of one series go on the SAME plate, so the dose-response within a
+# series is not confounded by plate effects; different series are spread across
+# plates so plate effects average out between series rather than aliasing onto
+# the ratio axis.
+series_plates = [primary_plates[i % len(primary_plates)]
+                 for i in range(len(ratio_series) + len(density_series))]
+rng.shuffle(series_plates)
+si = 0
+for (a, b) in ratio_series:
+    p = series_plates[si]; si += 1
+    for v1, v2 in RATIO_LEVELS:
+        content[take(p)] = ("ratio", a, b, v1, v2)
+for (a, b) in density_series:
+    p = series_plates[si]; si += 1
+    for v1, v2 in DENSITY_LEVELS:
+        content[take(p)] = ("density", a, b, v1, v2)
 
 # --- distinct pairs: primary plates first, then the extension plates ---------
 remaining = [i for p in free_by_plate for i in free_by_plate[p]]
 rng.shuffle(remaining)
 slots = list(remaining) + list(rng.permutation(extension_rows))
 for (a, b), i in zip(single_pairs, slots):
-    content[i] = ("pair", a, b)
+    content[i] = ("pair", a, b, 100, 100)
 
 assert all(c is not None for c in content), f"{sum(c is None for c in content)} wells unassigned"
 df_layout["well_type"] = [c[0] for c in content]
 df_layout["strain1"]   = [c[1] for c in content]
 df_layout["strain2"]   = [c[2] for c in content]
+df_layout["vol1_nL"]   = [c[3] for c in content]
+df_layout["vol2_nL"]   = [c[4] for c in content]
+df_layout["total_inoculum_nL"] = df_layout.vol1_nL + df_layout.vol2_nL
+df_layout["log2_inoculum_ratio"] = np.where(
+    df_layout.well_type == "mono", np.nan,
+    np.log2(df_layout.vol1_nL / df_layout.vol2_nL.replace(0, np.nan)))
 df_layout["separation_bp"] = [int(S[idx[c[1]], idx[c[2]]]) if c[0] != "mono" else -1
                               for c in content]
 print(df_layout.groupby(["plate_role", "well_type"]).size().to_string())''')
@@ -316,6 +421,25 @@ assert (g.n == TECHREP_REPLICATES).all(), "a technical replicate set is incomple
 print(f"technical replicates: {len(g)} pairs x {TECHREP_REPLICATES}, each spanning "
       f"{g.plates.min()}-{g.plates.max()} distinct plates")
 
+# monoculture inoculum contrast
+mv = prim[prim.well_type == "mono"].groupby("strain1").total_inoculum_nL.apply(
+    lambda x: tuple(sorted(x)))
+n_contrast = (mv == tuple(sorted(MONO_VOLUMES))).sum()
+print(f"  {n_contrast} strains have both mono volumes {sorted(MONO_VOLUMES)} nL "
+      f"(a within-strain density contrast)")
+
+# titration series intact, and each series on one plate
+for name, levels in [("ratio", RATIO_LEVELS), ("density", DENSITY_LEVELS)]:
+    t = prim[prim.well_type == name].copy()
+    t["pair"] = [frozenset((a, b)) for a, b in zip(t.strain1, t.strain2)]
+    gg = t.groupby("pair").agg(n=("dest_plate", "size"), plates=("dest_plate", "nunique"),
+                               levels=("total_inoculum_nL", "size"))
+    assert (gg.n == len(levels)).all(), f"{name} series incomplete"
+    assert (gg.plates == 1).all(), f"{name} series split across plates"
+    print(f"{name} titration: {len(gg)} series x {len(levels)} levels, "
+          f"each series on a single plate, spanning "
+          f"{t.dest_plate.nunique()} plates overall")
+
 spent = df_layout[df_layout.well_type != "mono"]
 viol = spent[(spent.separation_bp >= 0) & (spent.separation_bp < MIN_SEPARATION_BP)]
 unk = spent[spent.separation_bp < 0]
@@ -323,8 +447,9 @@ print(f"pair wells below {MIN_SEPARATION_BP} bp separation: {len(viol)}")
 print(f"pair wells of unknown separability: {len(unk)} "
       f"(strains: {sorted(set(unk.strain1) | set(unk.strain2))})")
 
+INTERACTION_TYPES = ["pair", "techrep", "ratio", "density"]
 ap = Counter()
-for r in prim[prim.well_type.isin(["pair", "techrep"])].itertuples():
+for r in prim[prim.well_type.isin(INTERACTION_TYPES)].itertuples():
     ap[r.strain1] += 1; ap[r.strain2] += 1
 v = np.array([ap[s] for s in strains])
 print(f"\ninteractions per strain on the sequenced plates: "
@@ -333,7 +458,7 @@ print(f"  strains below 3 interactions: {(v < 3).sum()}  "
       f"(expected: only the {len(limited)} never-sequenced ones)")
 
 apall = Counter()
-for r in df_layout[df_layout.well_type.isin(["pair", "techrep"])].itertuples():
+for r in df_layout[df_layout.well_type.isin(INTERACTION_TYPES)].itertuples():
     apall[r.strain1] += 1; apall[r.strain2] += 1
 va = np.array([apall[s] for s in strains])
 print(f"interactions per strain across all {N_PLATES} plates: "
@@ -355,16 +480,19 @@ strain twice, matching 20260721 so growth stays comparable with the existing dat
 - note this means a monoculture receives double the inoculum of either member of
 a pair, which matters when comparing mono against pair yields.''')
 
-code(r'''STRAIN_VOL = 100   # nL per transfer
-PRIMER_VOL = 250   # nL per primer transfer
+code(r'''PRIMER_VOL = 250   # nL per primer transfer
 
 strain_rows = []
 for r in df_layout.itertuples():
-    for src in (r.strain1, r.strain2):
+    for src, vol in ((r.strain1, r.vol1_nL), (r.strain2, r.vol2_nL)):
+        if vol <= 0:          # a 100 nL monoculture is a single transfer
+            continue
         strain_rows.append({"Source Well": src, "Destination Plate Name": r.dest_plate,
-                            "Destination Well": r.dest_well, "Transfer Volume": STRAIN_VOL})
+                            "Destination Well": r.dest_well, "Transfer Volume": int(vol)})
 df_strain_echo = pd.DataFrame(strain_rows)
-assert len(df_strain_echo) == 2 * len(df_layout)
+assert (df_strain_echo["Transfer Volume"] % 25 == 0).all(), "volume below Echo 25 nL granularity"
+print(f"strain transfers: {len(df_strain_echo)}  "
+      f"(volumes used: {sorted(df_strain_echo['Transfer Volume'].unique())} nL)")
 
 vol_per_source = df_strain_echo.groupby("Source Well")["Transfer Volume"].sum() / 1000
 print(f"volume drawn per source well (uL): min {vol_per_source.min():.1f}, "
@@ -448,6 +576,9 @@ code(r'''summary = pd.DataFrame([
     {"quantity": "monoculture wells",                "value": int((prim.well_type == "mono").sum())},
     {"quantity": "strains with 2 monocultures",      "value": sum(1 for s in strains if mono_counts[s] == 2)},
     {"quantity": "technical replicate wells",        "value": int((prim.well_type == "techrep").sum())},
+    {"quantity": "ratio-titration wells",            "value": int((prim.well_type == "ratio").sum())},
+    {"quantity": "density-titration wells",          "value": int((prim.well_type == "density").sum())},
+    {"quantity": "strains with a mono density contrast", "value": int(n_contrast)},
     {"quantity": "distinct interaction pairs",       "value": len(pairs)},
     {"quantity": "  of which replicated 5x",         "value": N_TECHREP_PAIRS},
     {"quantity": "median interactions/strain (seq)", "value": float(np.median(v))},
