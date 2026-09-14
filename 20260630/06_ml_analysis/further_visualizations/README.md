@@ -34,6 +34,26 @@ R² follows `genomic_ml`'s convention throughout: **vs. predicting no winner (0)
 mean**, so it is comparable to f01 and to the summary table, but *not* to `genomic_ml_yield`,
 which scores against the mean.
 
+## fv02: one model across both regimes
+
+`plot_model_scatter.py --models xgboost_raw_ko --regime both`
+-> `fv02_regime_gap_xgboost_raw_ko.svg`
+
+f02 plots the *winner of each regime*, so its left panel is xgboost_raw_ko (cv_pair) and its
+right panel is two_stage_ridge (cv_strain). That is the right choice for a report, but it means
+the drop between its two panels confounds two changes at once -- the regime AND the model. This
+rebuilds the same layout holding the model fixed, so the drop is attributable to the regime alone:
+
+| | pooled ρ | pooled R² | sign acc | n |
+|---|---|---|---|---|
+| cv_pair | 0.939 | 0.876 | 0.943 | 4395 |
+| cv_strain | 0.574 | 0.240 | 0.781 | 836 |
+
+Same genomes, same features, same learner; the only difference is whether the test strains
+appeared in training. The left panel is what a per-strain competitiveness lookup buys you and is
+NOT evidence that genomes predict interactions -- see the main README's cv_pair warning. Works
+for any single model (`--models two_stage_ridge --regime both`, etc.).
+
 ## Current finding: xgboost_raw_ko vs two_stage_ridge under cv_strain
 
 `fv01_predicted_vs_observed_cv_strain_xgboost_raw_ko_two_stage_ridge.png`

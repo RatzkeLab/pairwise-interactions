@@ -17,6 +17,7 @@ fold separately and averages. Both are printed on each panel so the two can neve
     python plot_model_scatter.py --models xgboost_pca --regime cv_pair
     python plot_model_scatter.py --models all
     python plot_model_scatter.py --format png              # raster, for a quick look
+    python plot_model_scatter.py --models xgboost_raw_ko --regime both   # f02 layout, one model
 """
 
 import argparse
@@ -80,43 +81,58 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", default=",".join(DEFAULT_MODELS),
                     help="comma-separated model names, or 'all'")
-    ap.add_argument("--regime", default="cv_strain", choices=["cv_strain", "cv_pair"])
+    ap.add_argument("--regime", default="cv_strain", choices=["cv_strain", "cv_pair", "both"],
+                    help="'both' rebuilds f02's layout with ONE model held fixed across the "
+                         "two regimes -- f02 itself shows the winner of each, so its panels "
+                         "are different models and the drop between them is not attributable")
     ap.add_argument("--src", default=str(SRC), help="directory holding g03_cv_*.csv")
     ap.add_argument("--format", default=gm.FIG_FORMAT, choices=["svg", "png"],
                     help="vector by default, matching the main report")
     args = ap.parse_args()
 
     src = Path(args.src)
-    pair_df = pd.read_csv(src / "g03_cv_predictions.csv")
+    all_pairs = pd.read_csv(src / "g03_cv_predictions.csv")
     summ = pd.read_csv(src / "g03_cv_summary.csv")
-    pair_df = pair_df[pair_df["regime"] == args.regime]
 
     if args.models == "all":
-        models = [m for m in sorted(pair_df["model"].unique())
+        models = [m for m in sorted(all_pairs["model"].unique())
                   if m not in ("zero_baseline", "strength_observed_no_genomics")
                   and not m.startswith("SHUFFLED")]
     else:
         models = [m.strip() for m in args.models.split(",") if m.strip()]
-    missing = [m for m in models if m not in set(pair_df["model"])]
+    missing = [m for m in models if m not in set(all_pairs["model"])]
     if missing:
-        raise SystemExit(f"not in {src.name}/g03_cv_predictions.csv for {args.regime}: {missing}\n"
-                         f"available: {sorted(pair_df['model'].unique())}")
+        raise SystemExit(f"not in {src.name}/g03_cv_predictions.csv: {missing}\n"
+                         f"available: {sorted(all_pairs['model'].unique())}")
+
+    if args.regime == "both":
+        if len(models) != 1:
+            raise SystemExit("--regime both compares ONE model across the two regimes; "
+                             "pass a single --models value")
+        specs = [(models[0], r) for r in ("cv_pair", "cv_strain")]
+        stem = f"fv02_regime_gap_{models[0]}"
+        suptitle = (f"{models[0]}: the same model under both regimes "
+                    f"(f02's panels are two different models)")
+        csv_tag, prefix = f"regime_gap_{models[0]}", "fv02"
+    else:
+        specs = [(m, args.regime) for m in models]
+        tag = "_".join(models) if len(models) <= 3 else f"{len(models)}models"
+        stem = f"fv01_predicted_vs_observed_{args.regime}_{tag}"
+        suptitle = "Predicted vs. observed log2 abundance ratio, pooled over CV folds"
+        csv_tag, prefix = args.regime, "fv01"
 
     OUT.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, len(models), figsize=(5.5 * len(models), 5.4), squeeze=False)
+    fig, axes = plt.subplots(1, len(specs), figsize=(5.5 * len(specs), 5.4), squeeze=False)
     rows = []
-    for ax, model in zip(axes[0], models):
-        m = panel(ax, pair_df[pair_df["model"] == model], model, args.regime, summ)
-        rows.append({"regime": args.regime, "model": model, **m})
-    fig.suptitle("Predicted vs. observed log2 abundance ratio, pooled over CV folds",
-                 fontweight="bold")
+    for ax, (model, regime) in zip(axes[0], specs):
+        p = all_pairs[(all_pairs["regime"] == regime) & (all_pairs["model"] == model)]
+        rows.append({"regime": regime, "model": model, **panel(ax, p, model, regime, summ)})
+    fig.suptitle(suptitle, fontweight="bold")
     fig.tight_layout()
-
-    tag = "_".join(models) if len(models) <= 3 else f"{len(models)}models"
-    img = gm._savefig(fig, OUT, f"fv01_predicted_vs_observed_{args.regime}_{tag}", args.format)
+    img = gm._savefig(fig, OUT, stem, args.format)
 
     tbl = pd.DataFrame(rows)
-    csv = OUT / f"fv01_pooled_metrics_{args.regime}.csv"
+    csv = OUT / f"{prefix}_pooled_metrics_{csv_tag}.csv"
     tbl.to_csv(csv, index=False)
     print(tbl.round(3).to_string(index=False))
     print(f"\n-> {img}\n-> {csv}")
