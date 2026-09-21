@@ -1,0 +1,90 @@
+================================================================================
+TODO: this run is under-demultiplexed by roughly 4-5x. Re-run it.
+   found 2026-09-21 while doing QC on 20260907; applies to 20260630 as well
+================================================================================
+
+WHAT IS WRONG
+-------------
+minibar reads column 2 of the barcode TSV as the forward index and column 4 as
+the reverse index (its -cols default for a 5-column file is 1,2,3,4,5 =
+sample, fwd index, fwd primer, rev index, rev primer).
+
+01_setup/minibar_primers_20260721.tsv puts the WHOLE 59 bp construct in those
+columns:
+
+    ATCGCCTACCGTGAC  TCAATCAAGAAGGGAAAGCAAGGT  AGRGTTYGATYMTGGCTCAG
+    ^ 15 bp adapter  ^ 24 bp barcode           ^ 20 bp 16S primer
+    \___________________ all of this sits in the FwIndex column ___________/
+
+So minibar matches a 59-mer within the barcode edit distance (6) instead of the
+24-mer barcode it was meant to match -- the same tolerance spread over 2.5x the
+length. Most reads fail and land in unk.fastq.
+
+HOW BAD
+-------
+Measured on 20260907, which has the identical file layout. On a representative
+10,000-read chunk:
+
+    barcode file      -e    assigned    est. false rate
+    as generated       6       13.7%              0.15%
+    corrected          4       63.6%              1.23%
+    corrected          5       67.6%              1.48%
+
+The false rate is measured, not assumed -- 20260907 has 2464 wells that were
+barcoded but never PCR'd, so reads landing there are false by construction.
+20260721 has no such internal control, so use -e 4 as calibrated there.
+
+20260721's own numbers, consistent with the same problem:
+    raw 2,345,223 -> filtered 734,503 (31.3%) -> demultiplexed 114,620
+    that is 15.6% of filtered reads assigned, 4.9% of raw.
+Expect roughly 3.5-4.5x more reads after the fix.
+
+HOW TO FIX
+----------
+1. Rewrite the barcode file (strips adapter + primer, keeps the 24 bp index):
+
+     python /home/rl/scripts/karl/pairwise_interaction_experiments/20260907/\
+02_demux_qc/fix_barcode_file.py \
+         01_setup/minibar_primers_20260721.tsv \
+         01_setup/minibar_primers_20260721_corrected.tsv
+
+   It asserts the construct really is adapter+barcode+primer before cutting.
+
+2. Copy 20260907/02_demux_qc/demultiplex_config_corrected.yaml, point
+   barcodes_tsv / fastq_input / outdir at this run, and re-run:
+
+     conda activate snakemake_env
+     cd /home/rl/scripts/ont-demultiplex-pipeline
+     snakemake -c 24 --use-conda --configfile <your_config.yaml>
+
+3. SECOND BUG, fix it in the same pass. demultiplex.smk reads the config keys
+   `barcode_edit_distance` and `primer_edit_distance`; every config in this
+   project writes `barcode_edit_dist` and `primer_edit_dist`. Those keys have
+   never been read -- the rule has always used its own defaults (-e 6 -E 6
+   -l 150). They happened to match what the configs asked for, so nothing broke,
+   but setting -e 4 will silently do nothing unless the key name is right.
+
+WHAT THIS CHANGES DOWNSTREAM
+----------------------------
+Everything built on read depth gets better, nothing gets invalidated: the reads
+that were assigned were assigned correctly (the barcodes in the discarded reads
+match the sheet at median edit distance 0 -- they were just never matched).
+Worth redoing afterwards:
+  - 03_recreate_reference_db  : more wells clear the min-reads threshold, so more
+                                strains get a corroborated consensus
+  - 04_qc                     : two-strain resolution in pair wells is depth
+                                limited, so the strain-count estimates improve
+  - 05/06                     : relative abundance is a ratio, so it is mostly
+                                unchanged, but its variance drops a lot
+
+Do NOT raise -e above 5. The barcode set's minimum pairwise edit distance is 12,
+so -e 6 sits exactly on the decision boundary and -e 7+ assigns mostly noise
+(measured: 72% false at -e 7).
+
+NOTE SPECIFIC TO 20260721
+-------------------------
+This run's well labels are the confirmed source-plate mix-up (3.7% supported vs
+96% for 20260630). Re-demultiplexing does not touch that -- it changes how many
+reads reach each well, not which strain the label claims is in it. But the extra
+depth does help the 16S-based recovery of the scrambled labels, which was the
+approach that worked; redo that after re-running.

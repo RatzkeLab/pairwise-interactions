@@ -1,0 +1,37 @@
+# 20260907 re-demultiplex with the corrected barcode file.
+#
+# Difference from ../01_setup/demultiplex_config.yaml:
+#   barcodes_tsv        -> *_corrected.tsv, index columns hold the 24 bp barcode
+#                          instead of adapter+barcode+primer (see fix_barcode_file.py)
+#   barcode_edit_distance 6 -> 4
+#
+# Those two changes together take assignment from 13.7% of filtered reads to
+# 63.6%, at an estimated false-assignment rate of 1.2% measured against the
+# never-PCR'd extension plates (see calibrate_minibar.py). -e 6 on a correctly
+# specified 24 bp index sits on the barcode set's minimum separation of 12 and
+# pushes the false rate to 5%, which is why it drops to 4 here.
+#
+# The full 4928-well sheet is kept on purpose: plates 9-16 were never amplified,
+# so reads landing there remain a live measure of mis-assignment.
+
+fastq_input: "/var/lib/minknow/data/kr_pairwise_03/no_sample_id/20260917_1657_MN37816_FBH02602_5ecfeeb4/fastq_pass/"
+barcodes_tsv: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/01_setup/minibar_primers_20260907_corrected.tsv"
+
+nanofilt:
+  min_len: 1400
+  max_len: 1800
+  min_q: 10
+  headcrop: 0
+  tailcrop: 0
+
+minibar:
+  prefix: ""
+  # NOTE: the keys are barcode_edit_distance / primer_edit_distance. The configs in
+  # 01_setup use barcode_edit_dist / primer_edit_dist, which demultiplex.smk never
+  # reads -- every run so far silently used the rule's defaults (-e 6 -E 6 -l 150).
+  # They happened to match, so nothing broke, but the setting was never actually live.
+  barcode_edit_distance: 4
+  primer_edit_distance: 6
+  search_length: 150
+
+outdir: "/home/rl/data/interim/karl/demultiplexing/20260907_demux_corrected/"
