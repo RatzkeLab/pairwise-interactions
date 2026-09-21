@@ -83,6 +83,12 @@ plt.rcParams.update(
 
 def gather_samples(cfg):
     layout = load_layout(cfg.layout_csv)
+    # 20260907 barcodes 16 plates but amplified only 8; the frozen half has real
+    # barcodes and no DNA. Earlier layouts have no plate_role column and are unaffected.
+    if "plate_role" in layout.columns:
+        n_all = len(layout)
+        layout = layout[layout["plate_role"] == "primary_sequenced"].copy()
+        print(f"plate_role present: using {len(layout)} sequenced wells of {n_all}")
     layout["path"] = layout.apply(
         lambda r: sample_fastq_path(cfg.demux_dir, r["dest_plate"], r["dest_well"]), axis=1
     )
