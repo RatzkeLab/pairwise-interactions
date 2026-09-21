@@ -17,3 +17,4 @@
 *.pyc
 .tabpfn_token
 pipeline_robust.ipynb
+*.pkl
