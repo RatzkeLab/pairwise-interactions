@@ -77,9 +77,15 @@ def _samples_gt5reads(cfg):
 # ===========================================================================
 
 
-def reference_distances(cfg):
+# Well types that hold two strains and can therefore be scored for relative abundance.
+# "pair" is the default so existing callers are unchanged; 20260907 adds arms
+# (techrep / ratio / density) that are also two-strain wells and need the same treatment.
+TWO_STRAIN_WELL_TYPES = ("pair",)
+
+
+def reference_distances(cfg, well_types=TWO_STRAIN_WELL_TYPES):
     samples = _samples_gt5reads(cfg)
-    pair_wells = samples[samples["well_type"] == "pair"].copy()
+    pair_wells = samples[samples["well_type"].isin(well_types)].copy()
     pairs = sorted({pair_key(r.strain1, r.strain2) for r in pair_wells.itertuples()})
     ref_seqs = load_reference_db(cfg.ra_reference_fasta)
 
@@ -170,9 +176,9 @@ def determine_off_target_threshold(cfg, pair_wells, ref_seqs):
     return threshold
 
 
-def compute_interaction_scores(cfg):
+def compute_interaction_scores(cfg, well_types=TWO_STRAIN_WELL_TYPES):
     samples = _samples_gt5reads(cfg)
-    pair_wells = samples[samples["well_type"] == "pair"].copy()
+    pair_wells = samples[samples["well_type"].isin(well_types)].copy()
     ref_seqs = load_reference_db(cfg.ra_reference_fasta)
 
     ref_dist = pd.read_csv(cfg.relative_abundance_out_dir / "r01_reference_pair_distances.csv")
@@ -187,6 +193,7 @@ def compute_interaction_scores(cfg):
         ref1, ref2 = ref_seqs.get(r.strain1), ref_seqs.get(r.strain2)
         bp_dist, norm_dist = ref_dist_map.get(pair_key(r.strain1, r.strain2), (None, None))
         base_row = {"sample_id": r.sample_id, "strain1": r.strain1, "strain2": r.strain2, "n_reads": r.n_reads,
+                    "well_type": r.well_type,
                     "ref_pair_bp_dist": bp_dist, "ref_pair_norm_dist": norm_dist}
 
         if ref1 is None or ref2 is None:
