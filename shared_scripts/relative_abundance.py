@@ -247,9 +247,28 @@ def compute_interaction_scores(cfg, well_types=TWO_STRAIN_WELL_TYPES):
 # ===========================================================================
 
 
-def replicate_stability(cfg):
+def replicate_stability(cfg, balanced_inoculum_only=False):
+    """Aggregate a pair's wells into one label per pair.
+
+    `balanced_inoculum_only` matters as soon as an experiment has a titration arm.
+    20260907 deliberately runs 50 pairs at five different inoculum ratios spanning ~49x;
+    those wells are NOT replicates of each other, and averaging them would produce a
+    meaningless mean while their spread would trip `unstable_replicate`. With the flag
+    set, only wells that received equal volumes of both strains -- the standard condition
+    -- are aggregated, which still includes the 1:1 level of the titration series.
+    Experiments without a titration arm are unaffected either way.
+    """
     wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
     wells = wells[~wells["missing_reference"]].copy()
+
+    if balanced_inoculum_only:
+        lay = load_layout(cfg.layout_csv)
+        vols = lay.set_index("sample_id")[["vol1_nL", "vol2_nL"]]
+        v = wells["sample_id"].map(vols["vol1_nL"]), wells["sample_id"].map(vols["vol2_nL"])
+        keep = (v[0] == v[1])
+        print(f"balanced-inoculum filter: keeping {int(keep.sum())} of {len(wells)} wells "
+              f"(dropping {int((~keep).sum())} titration wells at non-1:1 ratios)")
+        wells = wells[keep].copy()
 
     rows = []
     for (a, b), g in wells.groupby(["strain_a", "strain_b"]):
