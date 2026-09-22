@@ -30,6 +30,15 @@ from io_utils import load_layout
 CROSS_THR = 0.92          # identity to merge per-well representatives across wells
 MIN_CORROBORATING = 2     # wells that must carry a sequence before it is a strain
 
+# A strain whose monocultures produced no usable reads is not lost: its sequence still
+# recurs across every pair well it was put into, while its partners change. That is the
+# only evidence 20260721 ever had, and it worked. It is accepted here too, but held to a
+# stricter bar than the monoculture route, because a pair well shows two organisms and the
+# recurring one could in principle be a travelling contaminant rather than the strain --
+# requiring several DIFFERENT partners across several PLATES is what makes that unlikely.
+MIN_PAIR_ONLY_WELLS = 3
+MIN_PAIR_ONLY_PLATES = 2
+
 
 def identity(a, b):
     r = edlib.align(a, b, mode="NW", task="distance")
@@ -105,9 +114,11 @@ def build(cfg, well_reps, well_df):
         lay = lay[lay.plate_role == "primary_sequenced"]
     meta = lay.set_index("sample_id")[["well_type", "dest_plate"]]
 
+    # mono wells carry strain1 == strain2, so a plain loop over both columns counts every
+    # monoculture twice -- which inflates `informative` and understates `coverage`
     strain_wells = collections.defaultdict(list)
     for r in lay.itertuples():
-        for s in (r.strain1, r.strain2):
+        for s in {r.strain1, r.strain2}:
             if isinstance(s, str) and s:
                 strain_wells[s].append(r.sample_id)
 
@@ -141,6 +152,7 @@ def build(cfg, well_reps, well_df):
         pair_wells = top["wells"] - top["monos"]
         coverage = len(top["wells"]) / informative if informative else 0.0
 
+        n_plates = len(top["plates"])
         if mono_agree >= 2:
             status = "ok_monos_agree"
         elif mono_agree == 1 and len(pair_wells) >= MIN_CORROBORATING:
@@ -149,8 +161,11 @@ def build(cfg, well_reps, well_df):
             status = "monos_disagree"          # both monos gave data but different sequences
         elif mono_agree == 1:
             status = "mono_only"
+        elif (n_mono_seen == 0 and len(top["wells"]) >= MIN_PAIR_ONLY_WELLS
+              and n_plates >= MIN_PAIR_ONLY_PLATES):
+            status = "ok_pairs_corroborated"   # no mono data, but many partners agree
         elif len(top["wells"]) >= MIN_CORROBORATING:
-            status = "pairs_only_no_mono"
+            status = "pairs_only_weak"
         else:
             status = "single_well"
 
@@ -169,7 +184,11 @@ def build(cfg, well_reps, well_df):
     return summary, consensus
 
 
-GOOD = ("ok_monos_agree", "ok_mono_plus_pairs")
+# Statuses trusted enough to write out. The first two are anchored on a monoculture; the
+# third is the pair-corroborated fallback, kept separate so it can be dropped or audited
+# on its own (`report` prints its reference agreement next to the mono-anchored strains).
+MONO_ANCHORED = ("ok_monos_agree", "ok_mono_plus_pairs")
+GOOD = MONO_ANCHORED + ("ok_pairs_corroborated",)
 
 
 def write_fasta(path, summary, consensus, statuses=GOOD):
@@ -190,8 +209,12 @@ def report(summary):
     for k, v in summary.status.value_counts().items():
         print(f"  {k:24s} {v:4d}")
     ok = summary[summary.status.isin(GOOD)]
+    anchored = summary[summary.status.isin(MONO_ANCHORED)]
     print(f"\n{len(ok)} of {len(summary)} strains have a corroborated consensus "
           f"({len(ok)/len(summary):.1%})")
+    print(f"  {len(anchored)} anchored on a monoculture, "
+          f"{len(ok) - len(anchored)} corroborated by pair wells only "
+          f"(>={MIN_PAIR_ONLY_WELLS} wells on >={MIN_PAIR_ONLY_PLATES} plates)")
     bad = summary[summary.status == "monos_disagree"]
     if len(bad):
         print(f"\n{len(bad)} strains whose two monocultures disagree -- a contaminated or "
