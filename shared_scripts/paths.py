@@ -15,14 +15,24 @@ from pathlib import Path
 
 # --- external data roots -----------------------------------------------------------------
 KARL_ROOT = Path("/home/rl/scripts/karl")
-LINK_TO_KARL = KARL_ROOT / "Link to Karl"
 
-GENOMIC_TABLES = LINK_TO_KARL / "final_genomic_tables"
-PLATE_READER = LINK_TO_KARL / "plate_reader_csvs" / "data_ascii" / "Karl_2026"
+# The external data used to hang off a folder called "Link to Karl"; it is now reached
+# through `data_links/`, whose entries are symlinks into /home/rl/data. Updated 2026-09-22
+# after `Link to Karl` disappeared and every genomic-ML run started failing on the first
+# read. `check()` below exists so that shows up as one clear report rather than a traceback.
+DATA_LINKS = KARL_ROOT / "data_links"
+RESOURCES = DATA_LINKS / "resources"
+
+GENOMIC_TABLES = RESOURCES / "final_genomic_tables"
+REFERENCE_DBS_16S = RESOURCES / "reference_database_16s"
+PLATE_READER = DATA_LINKS / "raw" / "plate_reader_csvs" / "data_ascii" / "Karl_2026"
 CONSENSUS_MERGE = KARL_ROOT / "merge_consensus_sequences"
 
 # --- specific files referenced by name ------------------------------------------------------
-STRAIN_MAPPING = GENOMIC_TABLES / "mapping_384_well_plate_collection.csv"
+# NOTE: the mapping lives one level ABOVE the genomic tables, not inside them --
+# GenomicMLConfig.mapping_path resolves it through MAPPING_DIR for that reason.
+MAPPING_DIR = RESOURCES
+STRAIN_MAPPING = MAPPING_DIR / "mapping_384_well_plate_collection.csv"
 KEGG_KO = GENOMIC_TABLES / "KEGG_ko_and_strains_table.csv"
 KEGG_MODULE = GENOMIC_TABLES / "KEGG_Module_and_strains_table.csv"
 CAZY = GENOMIC_TABLES / "CAZy_and_strains_table.csv"
@@ -40,10 +50,12 @@ CORROBORATED_DB_EDITED = (CONSENSUS_MERGE / "collapse_naive_updated3_15diff" /
 OD_FULL = {
     "20260630": PLATE_READER / "Karl_20260704_OD_Full",     # 30 destination plates, 61-wl spectra
     "20260721": PLATE_READER / "Karl_20260723_OD_Full",     # 30 plates + one 't1' test plate
+    "20260907": PLATE_READER / "Karl_20260910_ODFull",      # 16 plates, plate no. in the ID1 header
 }
 OD_PREP = {
     "20260630": PLATE_READER / "Karl_20260623_OD",          # preculture / source-plate reads
     "20260721": PLATE_READER / "Karl_20260722_OD",
+    "20260907": PLATE_READER / "Karl_20260908_OD",
 }
 
 

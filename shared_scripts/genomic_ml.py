@@ -60,7 +60,7 @@ plt.rcParams.update({
     "font.size": 10, "axes.titlesize": 11, "axes.titleweight": "bold",
 })
 
-from paths import GENOMIC_TABLES
+from paths import GENOMIC_TABLES, MAPPING_DIR
 
 # Figures default to SVG: these are read zoomed in (f02's cv_strain panel is ~800 overlapping
 # points) and end up in slides and the manuscript, where a raster at dpi=160 is already too
@@ -91,6 +91,7 @@ class GenomicMLConfig:
     feature_table: str = "KEGG_ko_and_strains_table.csv"
     feature_columns: list = None   # optional subset of feature columns to use
     mapping_csv: str = "mapping_384_well_plate_collection.csv"
+    mapping_dir: Path = None          # defaults to MAPPING_DIR; the mapping is NOT in genomic_dir
 
     # label filtering
     drop_high_uncertainty: bool = True   # near-identical 16S refs -> label is a forced ~50/50 artifact
@@ -116,7 +117,7 @@ class GenomicMLConfig:
 
     @property
     def mapping_path(self):
-        return self.genomic_dir / self.mapping_csv
+        return (self.mapping_dir or MAPPING_DIR) / self.mapping_csv
 
 
 # ===========================================================================
