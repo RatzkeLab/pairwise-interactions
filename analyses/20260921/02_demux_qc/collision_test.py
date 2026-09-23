@@ -14,12 +14,12 @@ import numpy as np, pandas as pd, edlib, itertools, collections
 from pathlib import Path
 from scipy import stats
 
-BASE = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907")
+BASE = Path(__file__).resolve().parents[1]
 OUT = BASE / "02_demux_qc/outputs"
 ADAPTER, FWDP, REVP = "ATCGCCTACCGTGAC", "AGRGTTYGATYMTGGCTCAG", "CGGYTACCTTGTTACGACTT"
 ED = 6   # minibar barcode_edit_dist from demultiplex_config.yaml
 
-mb = pd.read_csv(BASE / "01_setup/minibar_primers_20260907.tsv", sep="\t")
+mb = pd.read_csv(config.SETUP / "minibar_primers_20260907.tsv", sep="\t")
 mb["fwd_bc"] = mb.FwIndex.str[len(ADAPTER):-len(FWDP)]
 mb["rev_bc"] = mb.RvIndex.str[len(ADAPTER):-len(REVP)]
 
@@ -43,7 +43,7 @@ print(f"  pairs within 2*{ED}={2*ED} edits (mutually confusable): "
       f"fwd {(Mf[off] <= 2*ED).sum()}, rev {(Mr[off] <= 2*ED).sum()}")
 
 # --- per well: count confusable sample rows, in the full sheet vs primary-only ----------
-lay = pd.read_csv(BASE / "01_setup/strain_layout_20260907.csv")
+lay = pd.read_csv(config.LAYOUT_CSV)
 lay["sample"] = lay.apply(lambda r: f"Plate{int(r.dest_plate):02d}_{r.dest_well}", axis=1)
 mb = mb.merge(lay[["sample", "plate_role"]], left_on="SampleID", right_on="sample")
 F = np.array([fi[b] for b in mb.fwd_bc]); R = np.array([ri[b] for b in mb.rev_bc])

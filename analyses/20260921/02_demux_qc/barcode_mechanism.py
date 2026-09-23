@@ -5,13 +5,16 @@ it fails identically in every run that uses it. A barcode WELL that has run dry,
 or that the Echo missed, fails in one run and not the next. The three runs share
 one primer plate and one index->sequence mapping, so the comparison is direct.
 """
-import re, collections
+import re, collections, sys
 import numpy as np, pandas as pd
 from pathlib import Path
 from scipy import stats
 
-BASE = Path("/home/rl/scripts/karl/pairwise_interaction_experiments")
-OUT = BASE / "20260907" / "02_demux_qc" / "outputs"
+BASE = Path(__file__).resolve().parents[1]          # this analysis
+sys.path.insert(0, str(BASE.parents[1] / "scripts"))
+import paths                                        # noqa: E402
+
+OUT = BASE / "02_demux_qc" / "outputs"
 FWD_PRIMER, REV_PRIMER = "AGRGTTYGATYMTGGCTCAG", "CGGYTACCTTGTTACGACTT"
 ADAPTER = "ATCGCCTACCGTGAC"
 
@@ -28,8 +31,8 @@ def barcodes_from_minibar(path):
 
 
 # --- index -> barcode sequence for this run -------------------------------------------
-bc07 = barcodes_from_minibar(BASE / "20260907/01_setup/minibar_primers_20260907.tsv")
-lay07 = pd.read_csv(BASE / "20260907/01_setup/strain_layout_20260907.csv")
+bc07 = barcodes_from_minibar(paths.setup_dir("20260907") / "minibar_primers_20260907.tsv")
+lay07 = pd.read_csv(paths.layout_csv("20260907"))
 lay07["sample"] = lay07.apply(lambda r: f"Plate{int(r.dest_plate):02d}_{r.dest_well}", axis=1)
 fwd_seq, rev_seq = {}, {}
 for _, r in lay07.iterrows():
@@ -40,12 +43,13 @@ print(f"distinct fwd barcodes {len(set(fwd_seq.values()))}/{len(fwd_seq)}, "
       f"rev {len(set(rev_seq.values()))}/{len(rev_seq)}")
 
 # --- per-barcode-SEQUENCE dropout in each run -----------------------------------------
+# this script deliberately spans three experiments, so every path goes through paths
 RUNS = {
-    "20260630": (BASE / "20260630", "20260710_demultiplex"),
-    "20260721": (BASE / "20260721", "20260730_demux"),
-    "20260907": (BASE / "20260907", "20260907_demux"),
+    "20260630": (paths.experiment_dir("20260630"), "20260710_demultiplex"),
+    "20260721": (paths.experiment_dir("20260721"), "20260730_demux"),
+    "20260907": (paths.experiment_dir("20260907"), "20260907_demux"),
 }
-DEMUXROOT = Path("/home/rl/scripts/karl/data_links/interim/demultiplexing")
+DEMUXROOT = paths.DATA_LINKS / "interim" / "demultiplexing"
 
 def run_barcode_rates(minibar_tsv, demux_dir, used_samples=None):
     bc = barcodes_from_minibar(minibar_tsv)

@@ -12,7 +12,7 @@ never inoculated, so they set the scale for "no cells".
 import sys
 from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import numpy as np, pandas as pd
 from scipy import stats
@@ -24,7 +24,7 @@ OUT = BASE / "02_demux_qc" / "outputs"
 def main():
     od, _ = pr.load_folder(config.OD_FULL, testname="ODFull")
     seq = pd.read_csv(OUT / "d00_sequenced_wells_with_counts.csv")
-    lay = pd.read_csv(BASE / "01_setup" / "strain_layout_20260907.csv")
+    lay = pd.read_csv(config.LAYOUT_CSV)
 
     used = set(zip(lay.dest_plate, lay.dest_well))
     od["inoculated"] = [(p, w) in used for p, w in zip(od.dest_plate, od.dest_well)]

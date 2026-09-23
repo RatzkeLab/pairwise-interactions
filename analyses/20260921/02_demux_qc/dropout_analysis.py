@@ -15,7 +15,7 @@ import numpy as np, pandas as pd
 from pathlib import Path
 from scipy import stats
 
-BASE = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907")
+BASE = Path(__file__).resolve().parents[1]
 DEMUX_ROOT = Path("/home/rl/data/interim/karl/demultiplexing")
 DEMUX_ORIGINAL = DEMUX_ROOT / "20260907_demux"
 DEMUX_CORRECTED = DEMUX_ROOT / "20260907_demux_corrected"
@@ -28,7 +28,7 @@ DROPOUT_MAX_READS = 10      # a well with <=10 reads cannot be called; that is t
 
 def load(demux=None):
     demux = demux or DEMUX_CORRECTED
-    lay = pd.read_csv(BASE / "01_setup" / "strain_layout_20260907.csv")
+    lay = pd.read_csv(config.LAYOUT_CSV)
     cnt = pd.read_csv(demux / "summary" / "demultiplexed_read_counts.tsv", sep="\t")
     lay["sample"] = lay.apply(
         lambda r: f"Plate{int(r.dest_plate):02d}_{r.dest_well}", axis=1)

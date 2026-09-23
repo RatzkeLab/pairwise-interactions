@@ -19,18 +19,26 @@ to reproduce the QC that found it.
 import sys
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+# This analysis lives in analyses/<analysis date>/ and the experiment it analyses lives in
+# experiments/<experiment date>/ -- neither contains the other (see scripts/paths.py), so
+# the layout is reached through paths, never by walking up from this file.
+BASE = Path(__file__).resolve().parent            # this analysis
+sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
-from experiment_config import ExperimentConfig   # noqa: E402
+import paths                                       # noqa: E402
+from experiment_config import ExperimentConfig     # noqa: E402
+
+EXPERIMENT = "20260907"
+SETUP = paths.setup_dir(EXPERIMENT)
+LAYOUT_CSV = paths.layout_csv(EXPERIMENT)
 
 DEMUX_ROOT = Path("/home/rl/data/interim/karl/demultiplexing")
 DEMUX_DIR = DEMUX_ROOT / "20260907_demux_corrected" / "unflipped"
 DEMUX_DIR_ORIGINAL = DEMUX_ROOT / "20260907_demux" / "unflipped"
 
-REFERENCE_DBS_DIR = Path("/home/rl/scripts/karl/data_links/resources/reference_database_16s")
-GENOMIC_TABLES = Path("/home/rl/scripts/karl/data_links/resources/final_genomic_tables")
-PLATE_READER = Path("/home/rl/scripts/karl/data_links/raw/plate_reader_csvs/data_ascii/Karl_2026")
+REFERENCE_DBS_DIR = paths.REFERENCE_DBS_16S
+GENOMIC_TABLES = paths.GENOMIC_TABLES
+PLATE_READER = paths.PLATE_READER
 
 OD_FULL = PLATE_READER / "Karl_20260910_ODFull"   # destination plates, 61-wavelength spectra
 OD_PREP = PLATE_READER / "Karl_20260908_OD"       # preculture / source-plate reads
@@ -43,7 +51,7 @@ def make_config(demux_dir=None):
     return ExperimentConfig(
         name="20260907",
         exp_base=BASE,
-        layout_csv=BASE / "01_setup" / "strain_layout_20260907.csv",
+        layout_csv=LAYOUT_CSV,
         demux_dir=demux_dir or DEMUX_DIR,
         reference_dbs={
             "corroborated": REFERENCE_DBS_DIR / "corroborated_db_filtered_min5.fasta",

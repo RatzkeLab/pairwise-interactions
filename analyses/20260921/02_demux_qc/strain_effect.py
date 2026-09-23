@@ -9,7 +9,7 @@ from pathlib import Path
 from scipy import stats
 
 OUT = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/02_demux_qc/outputs")
-SETUP = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/01_setup")
+SETUP = config.SETUP
 NEVER_SEQUENCED = "A4 A8 L14 N16 N2 N5 O16 P9".split()   # from the design README
 
 seq = pd.read_csv(OUT / "d00_sequenced_wells_with_counts.csv")

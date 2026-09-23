@@ -19,7 +19,7 @@ from multiprocessing import Pool
 
 import numpy as np, pandas as pd, edlib
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 import config
 from io_utils import load_reads
 from strain_identity import flexible_distance
@@ -110,7 +110,7 @@ def main(max_wells=400):
     # dominant sequence CAN flip when the read count quintuples, because the medoid
     # simply follows whichever cluster is larger -- so those are reported separately
     # rather than counted as errors.
-    lay = pd.read_csv(BASE / "01_setup" / "strain_layout_20260907.csv")
+    lay = pd.read_csv(config.LAYOUT_CSV)
     lay["sample"] = lay.apply(lambda r: f"Plate{int(r.dest_plate):02d}_{r.dest_well}", axis=1)
     df = df.merge(lay[["sample", "well_type"]], on="sample", how="left")
     df["agree"] = df.medoid_dist_bp <= AGREE_BP

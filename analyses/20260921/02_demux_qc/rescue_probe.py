@@ -10,7 +10,7 @@ import numpy as np, pandas as pd, edlib
 from pathlib import Path
 
 D = Path("/home/rl/scripts/karl/data_links/interim/demultiplexing/20260907_demux/demuxed")
-SETUP = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/01_setup")
+SETUP = config.SETUP
 OUT = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/02_demux_qc/outputs")
 ADAPTER, FWDP, REVP = "ATCGCCTACCGTGAC", "AGRGTTYGATYMTGGCTCAG", "CGGYTACCTTGTTACGACTT"
 EQ = [(k, v) for k, vs in {"R":"AG","Y":"CT","M":"AC"}.items() for v in vs]

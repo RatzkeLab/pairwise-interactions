@@ -27,7 +27,7 @@ import pandas as pd
 
 MINIBAR = "/home/rl/scripts/ont-demultiplex-pipeline/workflow/scripts/minibar_parallel.py"
 PY = "/home/rl/mambaforge/envs/minibar_env/bin/python"
-SETUP = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907/01_setup")
+SETUP = config.SETUP
 
 
 def run(barcodes, fastq, e, E, l):

@@ -24,7 +24,7 @@ steep one means the readout is partly just reporting the inoculum.
 import sys
 from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import numpy as np, pandas as pd
 from scipy import stats
@@ -38,7 +38,7 @@ QC = BASE / "02_demux_qc" / "outputs"
 
 def load():
     od, _ = pr.load_folder(config.OD_FULL, testname="ODFull")
-    lay = pd.read_csv(BASE / "01_setup" / "strain_layout_20260907.csv")
+    lay = pd.read_csv(config.LAYOUT_CSV)
     lay = lay[lay.plate_role == "primary_sequenced"]
     df = lay.merge(od[["dest_plate", "dest_well", "od"]],
                    on=["dest_plate", "dest_well"], how="left", validate="1:1")

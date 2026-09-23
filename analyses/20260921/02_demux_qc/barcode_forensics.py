@@ -16,11 +16,11 @@ from pathlib import Path
 from scipy import stats
 import itertools, collections
 
-BASE = Path("/home/rl/scripts/karl/pairwise_interaction_experiments/20260907")
+BASE = Path(__file__).resolve().parents[1]
 OUT = BASE / "02_demux_qc" / "outputs"
 
 seq = pd.read_csv(OUT / "d00_sequenced_wells_with_counts.csv")
-prim = pd.read_csv(BASE / "01_setup" / "primer_layout_20260907.csv")
+prim = pd.read_csv(config.SETUP / "primer_layout_20260907.csv")
 print("primer_layout columns:", list(prim.columns))
 print(prim.head(3).to_string())
 

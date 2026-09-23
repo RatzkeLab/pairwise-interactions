@@ -13,7 +13,7 @@ import runpy
 import sys, time
 from pathlib import Path
 BASE = Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import config
 

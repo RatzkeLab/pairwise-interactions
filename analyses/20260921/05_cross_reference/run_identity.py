@@ -37,7 +37,7 @@ the ranking (see mapping_validation.py):
 import sys, pickle
 from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import pandas as pd
 import config, strain_identity as si, strain_consensus

@@ -24,7 +24,7 @@ a null in only one stratum would be uninformative.
 import sys
 from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import numpy as np, pandas as pd
 from scipy import stats
@@ -40,7 +40,7 @@ MAX_UNCERTAINTY = 0.3   # matches relative_abundance's HIGH_UNCERTAINTY_THRESHOL
 
 def load(cfg):
     wells = pd.read_csv(cfg.relative_abundance_out_dir / "r02_well_interaction_scores.csv")
-    lay = pd.read_csv(BASE / "01_setup" / "strain_layout_20260907.csv")
+    lay = pd.read_csv(config.LAYOUT_CSV)
     lay["sample_id"] = lay.apply(
         lambda r: f"Plate{int(r.dest_plate):02d}_{r.dest_well}", axis=1)
     df = wells.merge(lay[["sample_id", "dest_plate", "vol1_nL", "vol2_nL",

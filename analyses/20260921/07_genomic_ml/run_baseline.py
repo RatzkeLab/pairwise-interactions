@@ -26,7 +26,7 @@ different condition, not replicates (see relative_abundance.replicate_stability)
 import sys
 from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parent / "shared_scripts"))
+sys.path.insert(0, str(BASE)); sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import numpy as np, pandas as pd
 import config, relative_abundance as ra, genomic_ml as gml
