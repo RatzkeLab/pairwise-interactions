@@ -18,3 +18,4 @@
 .tabpfn_token
 pipeline_robust.ipynb
 *.pkl
+!*/01_setup/*echo*.csv
