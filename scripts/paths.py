@@ -28,6 +28,34 @@ REFERENCE_DBS_16S = RESOURCES / "reference_database_16s"
 PLATE_READER = DATA_LINKS / "raw" / "plate_reader_csvs" / "data_ascii" / "Karl_2026"
 CONSENSUS_MERGE = KARL_ROOT / "merge_consensus_sequences"
 
+# --- this repository's own layout ------------------------------------------------------
+# Restructured 2026-09-23 to separate what was DONE from what was FOUND:
+#   experiments/<experiment date>   the plate design and the raw-data pointers. One per
+#                                   physical experiment; written once, then read.
+#   analyses/<analysis date>        code and outputs of one analysis run. An analysis can
+#                                   touch several experiments, and an experiment can be
+#                                   revisited by several analyses, so neither nests inside
+#                                   the other.
+#   scripts/                        this shared library (was `shared_scripts/`).
+# Analysis code therefore must NOT build paths relative to itself to reach a layout file --
+# use `setup_dir()` / `layout_csv()`.
+PW_ROOT = KARL_ROOT / "pairwise_interaction_experiments"
+EXPERIMENTS = PW_ROOT / "experiments"
+ANALYSES = PW_ROOT / "analyses"
+SCRIPTS = PW_ROOT / "scripts"
+
+
+def experiment_dir(name):
+    return EXPERIMENTS / str(name)
+
+
+def setup_dir(name):
+    return experiment_dir(name) / "01_setup"
+
+
+def layout_csv(name):
+    return setup_dir(name) / f"strain_layout_{name}.csv"
+
 # --- specific files referenced by name ------------------------------------------------------
 # NOTE: the mapping lives one level ABOVE the genomic tables, not inside them --
 # GenomicMLConfig.mapping_path resolves it through MAPPING_DIR for that reason.
