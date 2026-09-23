@@ -1,4 +1,8 @@
-# 20260907 — analysis
+# 20260921 — QC and first-pass genomic ML on experiment 20260907
+
+Analysis run against `experiments/20260907`. For the experiment itself — design, data
+locations, known issues, which demultiplexing to use — start at
+`../../experiments/20260907/readme.txt`.
 
 Run `python run_all.py` (env `karl_seq_analysis`, ~5 min) to reproduce everything below
 from the corrected demultiplexing. `--original` reruns against the first demux for the
