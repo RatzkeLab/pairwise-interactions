@@ -1,0 +1,46 @@
+# pass_b: the second MinKNOW run on the same flow cell (FBF36772, run ad553134, started
+# 2026-07-10 15:10) after the DNA library top-up. Demultiplexed ALONE with settings identical
+# to demultiplex_config.yaml (pass_a), so the two halves can be QC'd against each other before
+# any merge. Only fastq_input / outdir differ from demultiplex_config.yaml.
+#
+# 20260630 re-demultiplex with the corrected barcode file (run 2026-09-24).
+# The config for the original 2026-07-10 run is demultiplex_config_old.yaml (kept as it
+# was run; its paths predate the repo restructure).
+#
+# Differences from demultiplex_config_old.yaml:
+#   barcodes_tsv            -> *_corrected.tsv. The index columns now hold the 24 bp
+#                              barcode. Before, they held adapter + barcode + primer
+#                              (59 bp), so minibar matched a 59-mer within -e 6 and most
+#                              reads fell into unk.fastq. See known_issues.md.
+#   barcode_edit_distance   6 -> 4. Per base of barcode that is MORE tolerant than
+#                              before (4/24 vs 6/59), but it keeps a margin under the
+#                              barcode set's minimum pairwise distance of 12. Calibrated on
+#                              20260907 (analyses/20260921/02_demux_qc/calibrate_minibar.py).
+#   key names               the old config wrote barcode_edit_dist / primer_edit_dist, which
+#                              demultiplex.smk never reads (it silently used -e 6 -E 6).
+#   fastq_input / outdir    moved to data_links. Input is still fastq_pass_a only, the
+#                              same reads as the old run, so the two runs differ only in
+#                              barcode handling. fastq_pass_b (the run after the DNA top-up)
+#                              is still unused.
+#
+# Negative control: only odd plates 1-19 were sequenced, but the sheet covers all 30
+# plates. Reads assigned to even plates are false by construction. The old run put
+# 985 / 119,140 reads (0.83%) there.
+
+fastq_input: "/home/rl/scripts/karl/data_links/raw/sequencing_fastqs/20260710_fastq_pass_b/"
+barcodes_tsv: "/home/rl/scripts/karl/pairwise_interaction_experiments/experiments/20260630/01_setup/minibar_primers_20260630_corrected.tsv"
+
+nanofilt:
+  min_len: 1400
+  max_len: 1800
+  min_q: 10
+  headcrop: 0
+  tailcrop: 0
+
+minibar:
+  prefix: ""
+  barcode_edit_distance: 4
+  primer_edit_distance: 6
+  search_length: 150
+
+outdir: "/home/rl/scripts/karl/data_links/interim/demultiplexing/20260710_demultiplex_increased_tolerance_pass_b/"

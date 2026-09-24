@@ -11,6 +11,7 @@ This folder started as a copy of analyses/20260710 (2026-09-24). What changed:
 
         DEMUX_ARM=corrected   (default) -> outputs/
         DEMUX_ARM=original              -> outputs_original_demux/
+        DEMUX_ARM=pass_b                -> outputs_pass_b/  (run b alone, QC only)
 
   - only odd plates 1-19 were sequenced. The old analysis enforced that by reading a
     hand-copied folder (relevant_fastqs) holding only those plates. Here it is a
@@ -44,8 +45,11 @@ DEMUX_ROOT = paths.DATA_LINKS / "interim" / "demultiplexing"
 DEMUX_DIRS = {
     "corrected": DEMUX_ROOT / "20260710_demultiplex_increased_tolerance" / "unflipped",
     "original": DEMUX_ROOT / "20260710_demultiplex" / "unflipped",
+    # fastq_pass_b (second MinKNOW run, after the library top-up), demultiplexed ALONE with
+    # the corrected settings, for QC against pass_a before any merge (02_pass_ab_qc/)
+    "pass_b": DEMUX_ROOT / "20260710_demultiplex_increased_tolerance_pass_b" / "unflipped",
 }
-OUT_SUFFIX = {"corrected": "", "original": "_original_demux"}
+OUT_SUFFIX = {"corrected": "", "original": "_original_demux", "pass_b": "_pass_b"}
 
 CONSENSUS_FASTA = BASE / "03_create_reference_db" / "consensus2" / "strain_consensus_20260630.fasta"
 LAYOUT_CSV_FULL = paths.layout_csv(EXPERIMENT)     # all 30 plates -- what the OD scripts need

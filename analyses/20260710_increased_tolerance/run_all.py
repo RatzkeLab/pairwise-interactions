@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--arm", default="corrected", choices=["corrected", "original"])
+ap.add_argument("--arm", default="corrected", choices=["corrected", "original", "pass_b"])
 ap.add_argument("--steps", default="qc,ra,ml,plate,depth")
 args = ap.parse_args()
 steps = args.steps.split(",")
