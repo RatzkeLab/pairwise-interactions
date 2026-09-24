@@ -4,11 +4,14 @@ Defects in the data or in the methods applied to it, and what they affect.
 
 ---
 
-## <a name="minibar-barcode-file"></a>Malformed barcode file — OPEN, not re-run
+## <a name="minibar-barcode-file"></a>Malformed barcode file — FIXED 2026-09-24 (re-demultiplexed)
 
 **Found** 2026-09-21 while working on 20260907. **Affects** `20260710_demultiplex` and
-every analysis built on it. **Status** open — the fix exists and is validated, but this
-experiment has not been re-demultiplexed.
+every analysis built on it. **Status** fixed: re-demultiplexed as
+`20260710_demultiplex_increased_tolerance` (4.18× the reads, false-assignment rate 0.50% →
+0.61%), and re-analysed side by side with the old demux in
+`analyses/20260710_increased_tolerance`. The genomic-ML headline did not move (see
+`analysis_index.md`). `analyses/20260710` itself still reflects the old demux.
 
 minibar reads column 2 of the barcode TSV as the forward index. `minibar_primers_20260630.tsv`
 puts the whole 59 bp construct there — 15 bp adapter + 24 bp barcode + 20 bp 16S primer —

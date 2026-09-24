@@ -23,3 +23,13 @@ the current full fastq data is in
 FIXME: i'm not 100% sure but it looks like demultiplex results were manually merged into the relevant_fastqs folder for easier analysis (just keeping the odd plates 1-19). this should be done programatically
 
 as mentioned before, only odd numbered plates from 1 through 19 were included in sequencing this time, since 10 plates was the max we could sequence in one run.
+
+2026-09-24 (claude): confirmed -- relevant_fastqs/ is byte-identical copies of plates
+1,3,...,19 from 20260710_demultiplex/unflipped (308 wells each, 3080 total). The re-analysis in
+analyses/20260710_increased_tolerance does this programmatically instead: config.py adds a
+plate_role column to the layout and mapping_validation.gather_samples keeps only
+primary_sequenced wells, reading the demux output directly. Note plates 21-29 are odd but
+were NOT sequenced.
+
+The config used for the original run is now demultiplex_config_old.yaml; demultiplex_config.yaml
+is the corrected re-run (see demux_runs.md).
