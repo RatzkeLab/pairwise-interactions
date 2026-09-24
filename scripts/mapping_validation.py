@@ -244,8 +244,16 @@ PAF_COLS = ["qname", "qlen", "qstart", "qend", "strand", "tname", "tlen", "tstar
 
 
 def _write_combined_reads_fastq(samples_df, fastq_out, universe_out):
+    # The cache must match the CURRENT cohort. It once had no check, and a copied analysis
+    # folder (analyses/20260710 -> 20260710_increased_tolerance, 2026-09-24) silently ran the
+    # contamination scan on the old demux's reads after a re-demux with 4x the reads.
     if fastq_out.exists() and universe_out.exists():
-        return fastq_out, pd.read_csv(universe_out)
+        universe = pd.read_csv(universe_out)
+        cached = universe.groupby("sample_id").size()
+        wanted = samples_df.set_index("sample_id")["n_reads"]
+        if cached.reindex(wanted.index).fillna(0).astype(int).equals(wanted.astype(int)):
+            return fastq_out, universe
+        print(f"cached read universe {universe_out.name} does not match this cohort -- rebuilding")
 
     rows = []
     n = 0

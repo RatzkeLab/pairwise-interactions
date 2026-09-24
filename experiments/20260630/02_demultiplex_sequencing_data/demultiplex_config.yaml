@@ -1,11 +1,29 @@
-# Demo configuration file for ONT demultiplexing pipeline
-# if no other config file is specified, this will be used by default
+# 20260630 re-demultiplex with the corrected barcode file (run 2026-09-24).
+# The config for the original 2026-07-10 run is demultiplex_config_old.yaml (kept as it
+# was run; its paths predate the repo restructure).
+#
+# Differences from demultiplex_config_old.yaml:
+#   barcodes_tsv            -> *_corrected.tsv. The index columns now hold the 24 bp
+#                              barcode. Before, they held adapter + barcode + primer
+#                              (59 bp), so minibar matched a 59-mer within -e 6 and most
+#                              reads fell into unk.fastq. See known_issues.md.
+#   barcode_edit_distance   6 -> 4. Per base of barcode that is MORE tolerant than
+#                              before (4/24 vs 6/59), but it keeps a margin under the
+#                              barcode set's minimum pairwise distance of 12. Calibrated on
+#                              20260907 (analyses/20260921/02_demux_qc/calibrate_minibar.py).
+#   key names               the old config wrote barcode_edit_dist / primer_edit_dist, which
+#                              demultiplex.smk never reads (it silently used -e 6 -E 6).
+#   fastq_input / outdir    moved to data_links. Input is still fastq_pass_a only, the
+#                              same reads as the old run, so the two runs differ only in
+#                              barcode handling. fastq_pass_b (the run after the DNA top-up)
+#                              is still unused.
+#
+# Negative control: only odd plates 1-19 were sequenced, but the sheet covers all 30
+# plates. Reads assigned to even plates are false by construction. The old run put
+# 985 / 119,140 reads (0.83%) there.
 
-# Input FASTQ directory (must contain at least one *.fastq.gz)
-#fastq_input: "input_data/fastq_pass_partial/"
-fastq_input: "/var/lib/minknow/data/kr_pairwise_01/no_sample_id/20260710_0032_MN37816_FBF36772_eb6d246d/fastq_pass/"
-# barcodes_tsv: "/home/rl/scripts/karl/demultiplexing/251010_241204_384strains/barcodes20241204.tsv"
-barcodes_tsv: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/setup/minibar_primers_20260630.tsv"
+fastq_input: "/home/rl/scripts/karl/data_links/raw/sequencing_fastqs/20260710_fastq_pass_a/"
+barcodes_tsv: "/home/rl/scripts/karl/pairwise_interaction_experiments/experiments/20260630/01_setup/minibar_primers_20260630_corrected.tsv"
 
 nanofilt:
   min_len: 1400
@@ -15,10 +33,9 @@ nanofilt:
   tailcrop: 0
 
 minibar:
-  prefix: ""   # -P prefix for per-sample files
-  barcode_edit_dist: 6
-  primer_edit_dist: 6
+  prefix: ""
+  barcode_edit_distance: 4
+  primer_edit_distance: 6
   search_length: 150
 
-outdir: "/home/rl/scripts/karl/pairwise_interaction_experiments/20260630/demux/"
-# project: "ont_demux"
+outdir: "/home/rl/scripts/karl/data_links/interim/demultiplexing/20260710_demultiplex_increased_tolerance/"
