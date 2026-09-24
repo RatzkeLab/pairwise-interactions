@@ -14,6 +14,7 @@ that directory's `unflipped/`.
 | 2026-07-11 | `20260710_demultiplex_prelim1` | — | 6 | 119,140 | superseded (partial run) |
 | 2026-07-10 | `20260710_demultiplex` | `02_demultiplex_sequencing_data/demultiplex_config_old.yaml` | 6 (59 bp index) | 119,140 — 14.9% of filtered | superseded; under-assigns ~4× |
 | 2026-09-24 | `20260710_demultiplex_increased_tolerance` | `02_demultiplex_sequencing_data/demultiplex_config.yaml` | 4 (24 bp index) | 498,260 — **62.2%** of filtered | **CURRENT** |
+| 2026-09-24 | `20260710_demultiplex_increased_tolerance_pass_b` | `02_demultiplex_sequencing_data/demultiplex_config_pass_b.yaml` | 4 (24 bp index) | 917,581 — 62.3% of filtered | run b (post top-up) ALONE, for QC; not yet merged with pass_a |
 
 Sheet wells clearing 10 reads: 2,786 (original) → 2,852 (corrected). The gain is depth per
 well, not the number of usable wells — most sequenced wells already cleared 10 reads.
@@ -44,7 +45,28 @@ Every sequenced well gained reads (none lost any; median gain 4.18×, IQR 3.8–
 the false rate was already there at the strict setting (chimeras / index hopping, which no
 edit threshold fixes); the corrected matching adds ~0.1 percentage points.
 
-`fastq_pass_b` (the second run after the DNA top-up, ~2× the size of `_a`) is still unused.
+## fastq_pass_b: QC'd, same library, safe to merge (2026-09-24)
+
+`fastq_pass_b` is a second MinKNOW run on the same flow cell after a library top-up (28.4 h vs
+12.8 h). It was demultiplexed alone with identical settings and compared to pass_a well by well
+(`analyses/20260710_increased_tolerance/02_pass_ab_qc/`):
+
+| | pass_a | pass_b |
+|---|---|---|
+| assigned | 498,260 (62.2%) | 917,581 (62.3%) |
+| est. false-assignment rate | 0.61% | 0.61% |
+| minibar `HH` (barcode + primer, both ends) | 99.7% | 99.6% |
+| median reads / sequenced well | 166 | 307 |
+| full-length share of raw pass reads | 31.8% | 27.6% (top-up material more fragmented) |
+
+- Well shares agree: every plate's share is within 1% between runs; dispersion 1.95× Poisson;
+  1 of 3,080 wells changed share by 2×.
+- Strain ratios agree to counting noise: 1,856 pair wells, r = 0.993, z-score SD 1.05
+  (1 = binomial noise only), 0.29% of wells with |z| > 3 (0.27% expected).
+- Mapping QC agrees: same qc_status in 96.5% of wells, same off-target distribution.
+
+So pass_b is the same pool, sequenced deeper. Merging gives ~2.8× pass_a's depth (median
+~470 reads/well).
 
 ## Reproducing
 

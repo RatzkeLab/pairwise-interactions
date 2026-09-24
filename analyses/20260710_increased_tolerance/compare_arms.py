@@ -1,8 +1,10 @@
-"""Original vs corrected demultiplexing of 20260630, through identical code.
+"""Compare two demultiplexing arms of 20260630, through identical code.
 
-    python compare_arms.py        (env karl_seq_analysis; after run_all.py for both arms)
+    python compare_arms.py                       original vs corrected -> comparison/
+    python compare_arms.py corrected merged      -> comparison_corrected_vs_merged/
 
-Writes comparison/*.csv and comparison/figures/*.png. Sections:
+(env karl_seq_analysis; after run_all.py for both arms). First arm is the baseline.
+Sections:
   c01  demux: reads assigned, even-plate (never sequenced) false-assignment control
   c02  per-well depth and cohort size on the sequenced plates
   c03  per-well agreement: same well, relative abundance under both demuxes
@@ -25,10 +27,11 @@ BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))
 import config  # noqa: E402
 
-OUT = BASE / "comparison"
+X, Y = sys.argv[1:3] if len(sys.argv) >= 3 else ("original", "corrected")   # baseline, new
+OUT = BASE / ("comparison" if (X, Y) == ("original", "corrected") else f"comparison_{X}_vs_{Y}")
 FIG = OUT / "figures"
 FIG.mkdir(parents=True, exist_ok=True)
-ARMS = ["original", "corrected"]
+ARMS = [X, Y]
 DEMUX_RUN = {a: config.DEMUX_DIRS[a].parent for a in ARMS}
 pd.set_option("display.width", 200)
 
@@ -69,7 +72,7 @@ for a in ARMS:
                      median_reads_per_sequenced_well=d.loc[seq, "reads"].median(),
                      max_reads_unsequenced_well=d.loc[~seq, "reads"].max()))
 c01 = pd.DataFrame(rows).set_index("arm")
-c01.loc["fold_change"] = c01.loc["corrected"] / c01.loc["original"]
+c01.loc["fold_change"] = c01.loc[Y] / c01.loc[X]
 c01.to_csv(OUT / "c01_demux.csv")
 print(c01.T.round(3).to_string())
 
@@ -79,8 +82,8 @@ depth = {}
 for a in ARMS:
     s = pd.read_csv(od("04_qc/mapping_validation", a) / "01_samples_gt5reads.csv")
     depth[a] = s.set_index("sample_id")
-d = pd.read_csv(DEMUX_RUN["corrected"] / "summary" / "demux_summary.tsv", sep="\t")
-d0 = pd.read_csv(DEMUX_RUN["original"] / "summary" / "demux_summary.tsv", sep="\t")
+d = pd.read_csv(DEMUX_RUN[Y] / "summary" / "demux_summary.tsv", sep="\t")
+d0 = pd.read_csv(DEMUX_RUN[X] / "summary" / "demux_summary.tsv", sep="\t")
 dd = d.merge(d0, on="sample", suffixes=("_corr", "_orig"))
 dd = dd[dd["sample"].str.match(r"Plate\d\d_") & dd["sample"].str[5:7].astype(int).isin(config.SEQUENCED_PLATES)]
 c02 = pd.DataFrame({
@@ -90,19 +93,19 @@ c02 = pd.DataFrame({
         "wells_ge50_reads": int((dd[f"reads_{k}"] >= 50).sum()),
         "median_depth_in_cohort": depth[a].n_reads.median(),
         "mean_depth_in_cohort": depth[a].n_reads.mean(),
-    } for a, k in (("original", "orig"), ("corrected", "corr"))}).T
+    } for a, k in ((X, "orig"), (Y, "corr"))}).T
 c02.to_csv(OUT / "c02_depth.csv")
 print(c02.to_string())
 nz = dd[dd.reads_orig > 0]
 ratio = nz.reads_corr / nz.reads_orig
-print(f"per-well fold change (wells with >0 original reads): median {ratio.median():.2f}, "
+print(f"per-well fold change (wells with >0 baseline reads): median {ratio.median():.2f}, "
       f"IQR {ratio.quantile(.25):.2f}-{ratio.quantile(.75):.2f}; "
       f"wells that LOST reads: {(nz.reads_corr < nz.reads_orig).sum()}")
 
 fig, ax = plt.subplots(1, 2, figsize=(11, 4.2))
 bins = np.logspace(0, np.log10(max(dd.reads_corr.max(), 2)), 40)
-ax[0].hist(dd.reads_orig.clip(lower=1), bins=bins, alpha=.6, label="original")
-ax[0].hist(dd.reads_corr.clip(lower=1), bins=bins, alpha=.6, label="corrected")
+ax[0].hist(dd.reads_orig.clip(lower=1), bins=bins, alpha=.6, label=X)
+ax[0].hist(dd.reads_corr.clip(lower=1), bins=bins, alpha=.6, label=Y)
 ax[0].set_xscale("log"); ax[0].set_xlabel("reads per well (sequenced plates)"); ax[0].set_ylabel("wells")
 ax[0].legend(); ax[0].set_title("Per-well depth")
 ax[1].scatter(dd.reads_orig + 1, dd.reads_corr + 1, s=4, alpha=.3)
@@ -110,15 +113,15 @@ lim = [1, dd.reads_corr.max() + 1]
 ax[1].plot(lim, lim, "k--", lw=.8, label="1x")
 ax[1].plot(lim, [4 * x for x in lim], ":", c="grey", lw=.8, label="4x")
 ax[1].set_xscale("log"); ax[1].set_yscale("log"); ax[1].legend()
-ax[1].set_xlabel("original reads + 1"); ax[1].set_ylabel("corrected reads + 1"); ax[1].set_title("Same well, both demuxes")
+ax[1].set_xlabel(f"{X} reads + 1"); ax[1].set_ylabel(f"{Y} reads + 1"); ax[1].set_title("Same well, both demuxes")
 fig.tight_layout(); fig.savefig(FIG / "c02_depth.png", dpi=150); plt.close(fig)
 
 # --- c03 per-well relative abundance agreement ------------------------------------------
 header("c03 per-well relative abundance, same well under both demuxes")
 w = {a: pd.read_csv(od("05_engineer_relative_abundances/relative_abundance", a) /
                     "r02_well_interaction_scores.csv").set_index("sample_id") for a in ARMS}
-common = w["original"].index.intersection(w["corrected"].index)
-m = w["original"].loc[common].join(w["corrected"].loc[common], lsuffix="_o", rsuffix="_c")
+common = w[X].index.intersection(w[Y].index)
+m = w[X].loc[common].join(w[Y].loc[common], lsuffix="_o", rsuffix="_c")
 m = m[(~m.missing_reference_o.astype(bool)) & m.relative_abundance_a_o.notna() & m.relative_abundance_a_c.notna()]
 sep = m.ref_pair_bp_dist_o >= 10
 diff = (m.relative_abundance_a_c - m.relative_abundance_a_o)
@@ -137,8 +140,8 @@ fig, ax = plt.subplots(figsize=(5, 5))
 ax.scatter(m.relative_abundance_a_o[sep], m.relative_abundance_a_c[sep], s=5, alpha=.35,
            c=np.log10(m.n_reads_o[sep]), cmap="viridis")
 ax.plot([0, 1], [0, 1], "k--", lw=.8)
-ax.set_xlabel("relative abundance (original demux)"); ax.set_ylabel("relative abundance (corrected demux)")
-ax.set_title(f"Same well, both demuxes (refs >=10 bp apart, n={sep.sum()})\ncolour = log10 original depth", fontsize=10)
+ax.set_xlabel(f"relative abundance ({X})"); ax.set_ylabel(f"relative abundance ({Y})")
+ax.set_title(f"Same well, both demuxes (refs >=10 bp apart, n={sep.sum()})\ncolour = log10 baseline depth", fontsize=10)
 fig.tight_layout(); fig.savefig(FIG / "c03_well_agreement.png", dpi=150); plt.close(fig)
 
 # --- c04 mapping validation -------------------------------------------------------------
@@ -176,10 +179,10 @@ print(c05.round(4).to_string())
 
 # strength agreement between arms
 bt = {a: pd.read_csv(od("05_engineer_relative_abundances/relative_abundance", a) / "r05_bt_strengths.csv") for a in ARMS}
-print("\nBT strength columns:", bt["original"].columns.tolist())
-key = bt["original"].columns[0]
-val = [c for c in bt["original"].columns if "strength" in c.lower()][0]
-b = bt["original"].merge(bt["corrected"], on=key, suffixes=("_o", "_c"))
+print("\nBT strength columns:", bt[X].columns.tolist())
+key = bt[X].columns[0]
+val = [c for c in bt[X].columns if "strength" in c.lower()][0]
+b = bt[X].merge(bt[Y], on=key, suffixes=("_o", "_c"))
 print(f"BT strengths, same strain under both demuxes: n={len(b)}, "
       f"spearman {spearmanr(b[val + '_o'], b[val + '_c'])[0]:.3f}, pearson {pearsonr(b[val + '_o'], b[val + '_c'])[0]:.3f}")
 

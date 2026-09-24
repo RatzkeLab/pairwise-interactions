@@ -91,11 +91,13 @@ header("d02 do wells get the same SHARE of reads in both runs?")
 w = dem["a"][["reads", "plate", "sequenced"]].join(dem["b"][["reads"]], lsuffix="_a", rsuffix="_b")
 w = w[w.sequenced]
 Na, Nb = w.reads_a.sum(), w.reads_b.sum()
-# expected run-b count if b is the same library: its share in run a, estimated from both runs
+# Two-sample (wells x runs) Pearson chi-square: if b is the same library, each well has one
+# share, estimated from both runs. Residuals from BOTH runs count -- summing run b's alone
+# deflates the statistic by ~Na/(Na+Nb), which an earlier version of this script did.
 share = (w.reads_a + w.reads_b) / (Na + Nb)
-exp_b = share * Nb
+exp_a, exp_b = share * Na, share * Nb
 ok = share > 0
-pearson_chi2 = (((w.reads_b - exp_b) ** 2) / exp_b)[ok].sum()
+pearson_chi2 = ((((w.reads_a - exp_a) ** 2) / exp_a) + (((w.reads_b - exp_b) ** 2) / exp_b))[ok].sum()
 dof = ok.sum() - 1
 disp = pearson_chi2 / dof
 lw = np.log2((w.reads_b + 1) / (w.reads_a + 1) * Na / Nb)
