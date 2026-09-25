@@ -3,7 +3,7 @@
 Demultiplexing sits between raw data and analysis: run rarely, referenced often. This
 file is the record of every run against this experiment's reads, and which one to use.
 
-**Use `20260710_demultiplex_increased_tolerance`** (2026-09-24). The original run is kept for
+**Use `20260710_demultiplex_increased_tolerance_merged`** (pass_a + pass_b, 2026-09-24). The original run is kept for
 comparison; both are analysed side by side in `analyses/20260710_increased_tolerance`.
 
 Output lives under `data_links/interim/demultiplexing/<dir>/`; per-well FASTQs are in
@@ -13,8 +13,9 @@ that directory's `unflipped/`.
 |---|---|---|---|---|---|
 | 2026-07-11 | `20260710_demultiplex_prelim1` | — | 6 | 119,140 | superseded (partial run) |
 | 2026-07-10 | `20260710_demultiplex` | `02_demultiplex_sequencing_data/demultiplex_config_old.yaml` | 6 (59 bp index) | 119,140 — 14.9% of filtered | superseded; under-assigns ~4× |
-| 2026-09-24 | `20260710_demultiplex_increased_tolerance` | `02_demultiplex_sequencing_data/demultiplex_config.yaml` | 4 (24 bp index) | 498,260 — **62.2%** of filtered | **CURRENT** |
-| 2026-09-24 | `20260710_demultiplex_increased_tolerance_pass_b` | `02_demultiplex_sequencing_data/demultiplex_config_pass_b.yaml` | 4 (24 bp index) | 917,581 — 62.3% of filtered | run b (post top-up) ALONE, for QC; not yet merged with pass_a |
+| 2026-09-24 | `20260710_demultiplex_increased_tolerance` | `02_demultiplex_sequencing_data/demultiplex_config.yaml` | 4 (24 bp index) | 498,260 — **62.2%** of filtered | pass_a only; superseded by `_merged` |
+| 2026-09-24 | `20260710_demultiplex_increased_tolerance_pass_b` | `02_demultiplex_sequencing_data/demultiplex_config_pass_b.yaml` | 4 (24 bp index) | 917,581 — 62.3% of filtered | run b (post top-up) alone, for QC; merged into `_merged` |
+| 2026-09-24 | `20260710_demultiplex_increased_tolerance_merged` | per-sample concatenation of the two rows above (`analyses/20260710_increased_tolerance/02_pass_ab_qc/merge_pass_ab.py`) | 4 | 1,415,841 | **CURRENT — use this** (median 474 reads/well) |
 
 Sheet wells clearing 10 reads: 2,786 (original) → 2,852 (corrected). The gain is depth per
 well, not the number of usable wells — most sequenced wells already cleared 10 reads.
@@ -65,8 +66,8 @@ edit threshold fixes); the corrected matching adds ~0.1 percentage points.
   (1 = binomial noise only), 0.29% of wells with |z| > 3 (0.27% expected).
 - Mapping QC agrees: same qc_status in 96.5% of wells, same off-target distribution.
 
-So pass_b is the same pool, sequenced deeper. Merging gives ~2.8× pass_a's depth (median
-~470 reads/well).
+So pass_b is the same pool, sequenced deeper. Merged: 1,415,841 reads, median 474 reads/well.
+Re-analysed in `analyses/20260710_increased_tolerance` (arm `merged`); the ML headline does not move.
 
 ## Reproducing
 

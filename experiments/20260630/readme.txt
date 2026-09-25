@@ -17,8 +17,8 @@ Where the data lives
 --------------------
 OD (destination plates)   data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260704_OD_Full
 OD (preculture / source)  data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260623_OD
-demultiplexed reads       data_links/interim/demultiplexing/20260710_demultiplex_increased_tolerance/unflipped
-                          (see demux_runs.md -- re-run 2026-09-24 with the corrected barcode file, 4.2x the reads)
+demultiplexed reads       data_links/interim/demultiplexing/20260710_demultiplex_increased_tolerance_merged/unflipped
+                          (see demux_runs.md -- corrected barcode file, pass_a + pass_b, 11.9x the original reads)
 
 Results
 -------

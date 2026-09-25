@@ -61,6 +61,32 @@ g03 shows SHUFFLED cv_strain ρ ≈ +0.12. `cross_validate` seeds the shuffle wi
 `1000 + fold`, i.e. one permutation per fold. Rebuilt over 20 permutation seeds, the null is
 ρ 0.02 ± 0.10 on both arms, so +0.12 is one draw from it, not leakage.
 
+## Adding fastq_pass_b (the run after the library top-up)
+
+`02_pass_ab_qc/` checks run b against run a before merging: raw-level (`raw_run_qc.py`: length,
+quality, end reasons, pore occupancy, fragment structure) and per-well (`demux_ab_qc.py`: read
+shares and strain ratios tested against counting noise). Run b is the same pool: plate shares
+within 1%, strain-ratio differences at binomial noise (z SD 1.05). `merge_pass_ab.py` then
+concatenates the two per-well demuxes; `DEMUX_ARM=merged` -> `*/outputs_merged_ab/`,
+`python compare_arms.py corrected merged` -> `comparison_corrected_vs_merged/`.
+
+| | pass_a only | pass_a + pass_b |
+|---|---|---|
+| reads assigned | 498,260 | **1,415,841** (2.84×) |
+| est. false-assignment rate | 0.61% | 0.61% |
+| median reads / well | 166 | **474** |
+| same-well relative abundance, r | | 0.995 |
+| median replicate SD (log2) | 0.434 | 0.372 |
+| unstable-replicate pairs | 11 | 8 |
+| BT pseudo-R² / DCI / cyclic triads | 0.886 / 0.804 / 2.4% | 0.891 / 0.817 / 1.9% |
+| label-noise ceiling (binomial) | 0.957 | 0.977 |
+| cv_strain two_stage_ridge R² / ρ | 0.306 / 0.573 | 0.302 / 0.577 |
+| cv_strain xgboost_raw_ko ρ | 0.576 | 0.586 |
+
+Paired per-fold, no ML change is significant (all p ≥ 0.09). Depth helps the per-well and
+hierarchy measures a little and the genome -> interaction model not at all: three depths now
+(39, 166, 474 reads/well) give the same cv_strain ρ ≈ 0.57-0.59.
+
 ## Traps found on the way
 
 - **Copied output folders poison the minimap2 scan.** `mapping_validation` cached the
