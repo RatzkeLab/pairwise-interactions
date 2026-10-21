@@ -56,3 +56,19 @@ pairs that 20260907 never tested** at R² 0.66, r 0.84, ρ 0.81. That is the hon
 `x01_identity.csv` · `x02_direct_pairs*.csv` · `x03_well_level_yardstick.csv` ·
 `x04_strength_transfer.csv`, `x04_strength_correlation.csv`, `x04_predictions_*.csv` ·
 `figures/x_cross_experiment.png`
+
+# 02_september_summary: 20260907 ML against every reference point
+
+    python 02_september_summary/summary_table.py      -> outputs/september_summary.{csv,md}
+
+One table: best September model vs (1) zero baseline and shuffled control, (2) technical
+replicates within 20260907, (3) biological replicates across experiments, (4) 20260630's
+models, (5) 16S-only models on the same folds. No refitting; replicate rows are computed with
+`genomic_ml._metrics` so R² means the same thing everywhere (vs predicting no winner).
+ML rows are cv_strain fold means ± SD; replicate rows are pooled.
+
+Headline: best genome model ρ 0.68 / R² 0.45; replicates, within or across experiments,
+ρ 0.87–0.93 / R² 0.87–0.89. The model recovers roughly half to three quarters of what
+replication says is recoverable. 16S alone on the same folds reaches ρ 0.61 / R² 0.31; KO
+beats it on R² in a paired per-fold test (+0.14, p = 0.008, 11/15 folds) but not
+significantly on ρ (+0.08, p = 0.15). In 20260630 the gap to 16S was far larger (ρ 0.59 vs 0.41).
