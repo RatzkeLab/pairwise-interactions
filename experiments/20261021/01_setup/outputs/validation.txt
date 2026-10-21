@@ -1,0 +1,5 @@
+communities: PASS
+layout: PASS
+barcodes: PASS
+echo: PASS
+minibar: PASS

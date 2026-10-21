@@ -14,7 +14,9 @@ risks regenerating the layout, and the fix could only be applied after the fact
 (`merge_consensus_sequences/250916_resequence/barcodes250807.tsv`) was correct, so this was
 introduced when setup moved into the notebook. See `20260630/known_issues.md`.
 
-**Proposed structure:**
+**Implemented 2026-10-21** as `scripts/experiment_setup/` (pool, communities, layout,
+barcodes, echo, validate), first used by `20261021/01_setup/`. The structure as
+proposed:
 
 ```
 scripts/experiment_setup/        shared, importable, tested once

@@ -1,0 +1,30 @@
+experiment 20261021  seed 20261021
+pool: 133 genomes (75 core, 58 extended)
+
+main: 408 communities x 3 = 1224 wells
+  by module: {'small': 340, 'mid': 16, 'trio_pair': 15, 'leave_out': 9, 'large_test': 9, 'sanity_pair': 8, 'resolution_test': 6, 'trio': 5}
+  by size:   {2: 23, 3: 48, 4: 43, 5: 49, 6: 43, 7: 50, 8: 43, 9: 42, 10: 42, 12: 4, 14: 3, 15: 1, 16: 3, 18: 3, 20: 4, 25: 1, 30: 1, 40: 1, 51: 1, 55: 1, 61: 1, 66: 1}
+  core / extended: 285 / 123
+  MPD (bp) 5/50/95%: [48.0, 231.0, 309.0]
+
+passage: 102 communities x 3 = 306 wells
+  by module: {'small': 95, 'large_test': 7}
+  by size:   {3: 12, 4: 12, 5: 12, 6: 12, 7: 12, 8: 12, 9: 12, 10: 11, 15: 1, 20: 1, 25: 1, 30: 1, 40: 1, 51: 1, 61: 1}
+  core / extended: 102 / 0
+  MPD (bp) 5/50/95%: [85.0, 215.0, 317.0]
+  main-plate wells, trio              15 (1.2%)
+  main-plate wells, trio_pair         45 (3.7%)
+  main-plate wells, sanity_pair       24 (2.0%)
+  main-plate wells, leave_out         27 (2.2%)
+  main-plate wells, mid               48 (3.9%)
+  main-plate wells, large_test        27 (2.2%)
+  main-plate wells, resolution_test   18 (1.5%)
+
+wells per strain (all inoculated plates): min 18, median 114, max 138; strains used 133 / 133
+inoculum: 100 nL per member, 75 nL for communities over 50 members (cap 66 members)
+  per well: median 0.70 uL, max 4.95 uL
+  drawn per source well: median 11.2 uL, max 13.3 uL (P21); source fills needed: 1  -> NO REFILL
+  Echo strain transfers: 11,484, droplets 44,901 (20260907: 9,096 / 38,040)
+plates: inoculated [1, 2, 3, 4, 5]; barcoded [1, 2, 3, 4, 5, 6, 7, 8] + decoy plate 99
+barcodes excluded (failed in 20260907): fwd [29, 30, 44, 45, 46, 64, 65, 74], rev [7, 28, 33, 38, 41, 43, 44, 49, 61, 64, 77]
+minibar: {'FwIndex_min_edit_distance': 12, 'RvIndex_min_edit_distance': 12, 'planned_e': 4}

@@ -1,0 +1,89 @@
+# The ONLY per-experiment input. run_setup.py reads this, calls scripts/experiment_setup,
+# writes outputs/, validates, and records a manifest. Paths are relative to /home/rl/scripts/karl.
+# A DRAFT may be rebuilt with --force; a dated experiment may not.
+
+experiment: "20261021"
+seed: 20261021
+
+inputs:
+  eligibility: pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g04_design_eligibility.csv
+  distances: pairwise_interaction_experiments/analyses/20261021/02_distinguishability/outputs/d01_distance_matrix_bp.csv
+  genome_index: pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g01_genome_index.csv
+  ko_table: data_links/resources/final_genomic_tables/KEGG_ko_and_strains_table.csv
+  pairs_20260907: pairwise_interaction_experiments/analyses/20260921/analysis/relative_abundance/outputs/r03_pair_replicate_stats.csv
+  layout_20260907: pairwise_interaction_experiments/experiments/20260907/01_setup/strain_layout_20260907.csv
+  primer_specs: data_links/resources/PrimerPlateSpecs.csv
+  failed_barcodes_fwd: pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_fwd_barcode_forensics.csv
+  failed_barcodes_rev: pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_rev_barcode_forensics.csv
+  # 20260907 source-plate reads (same plate): recorded per strain in pool.csv for reference
+  source_od_files:
+    - data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260908_OD/Karl_20260908_115807_ODFull_10.csv
+    - data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260908_OD/Karl_20260908_123137_ODFull_10.csv
+    - data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260908_OD/Karl_20260909_121752_ODFull_10.csv
+    - data_links/raw/plate_reader_csvs/data_ascii/Karl_2026/Karl_20260908_OD/Karl_20260909_123000_ODFull_10.csv
+
+pool:
+  include_extended: true     # medium-confidence genomes, kept in their own communities
+  min_source_od: null        # keep the barely-growing strains this round
+
+separation_bp: 30            # default minimum 16S separation inside a community
+replicates: 3
+blanks_per_plate: 2
+
+blocks:
+  main:                      # 24 h endpoint, sequenced
+    plates: [1, 2, 3, 4]
+  passage:                   # daily dilution; triplicates self-contained on the plate
+    plate: 5
+    pool: core               # keep the time series free of the medium-confidence caveat
+    large_from_main: true    # every core large test also goes on the passage plate
+    overlap_with_main: 0.25  # share of its small communities also on the main plates
+    timepoints:              # barcode plate -> time point; same layout for each
+      5: 24h
+      6: 48h
+      7: 5d
+      8: 10d
+
+decoy_barcode_plate: 99      # 308 barcode combinations on the sheet, in no well: reads
+                             # assigned there measure demultiplexing mis-assignment
+
+small:
+  sizes: [3, 4, 5, 6, 7, 8, 9, 10]
+  extended_fraction: 0.33    # share of communities holding >= 1 medium-confidence strain
+  relatedness_strata: 3
+
+modules:                     # main plates
+  sanity_pairs: 8            # re-measured 20260907 pairs (technical-replicate pairs first)
+  trios: 5                   # each with its 3 pairs measured too
+  leave_out:
+    - {base: 8, depth: 1}    # base + 8 leave-one-out
+  mid:                       # bigger communities in the wells leave-two-out would have used
+    sizes: [12, 14, 16, 18, 20]
+    n: 16
+  resolution_tests:          # one deliberately close pair, rest >= separation_bp
+    bands: [[8, 15], [15, 30]]
+    n_per_band: 3
+    size: 5
+  large_tests:
+    - {size: 15, pool: core, min_sep: 30}
+    - {size: 20, pool: core, min_sep: 30}
+    - {size: 25, pool: core, min_sep: 30}
+    - {size: 30, pool: core, min_sep: 30}
+    - {size: 40, pool: core, min_sep: 30}
+    - {size: max, pool: core, min_sep: 30}
+    - {size: max, pool: extended, min_sep: 30}
+    - {size: max, pool: core, min_sep: 15}
+    - {size: max, pool: extended, min_sep: 15}
+
+inoculum:
+  mode: equal                # OD normalisation deferred to a later run
+  member_nL: 100             # per member (>= 4 droplets: reproducibility)
+  reduced_nL: 75             # per member where member_nL would exceed max_well_inoculum_uL
+  max_well_inoculum_uL: 5.0  # 10% of the 50 uL culture -> communities capped at 66 members
+  fill_cap_uL: 25            # usable volume per source well before a refill
+
+primers:
+  volume_nL: 250
+
+demux:
+  barcode_edit_distance: 4   # dense combinatorial sheet: -e 4 (see experiments/README.md)

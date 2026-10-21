@@ -1,0 +1,16 @@
+# Plate99_* rows are decoys: barcode combinations put in no
+# well. Reads assigned to them measure demultiplexing mis-assignment.
+fastq_input: <fill in after the run>
+barcodes_tsv: /home/rl/scripts/karl/pairwise_interaction_experiments/experiments/20261021/01_setup/outputs/minibar_sheet_20261021.tsv
+nanofilt:
+  min_len: 1400
+  max_len: 1800
+  min_q: 10
+  headcrop: 0
+  tailcrop: 0
+minibar:
+  prefix: ''
+  barcode_edit_distance: 4
+  primer_edit_distance: 6
+  search_length: 150
+outdir: /home/rl/data/interim/karl/demultiplexing/20261021_demux/
