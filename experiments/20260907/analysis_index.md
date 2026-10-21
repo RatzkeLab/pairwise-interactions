@@ -6,6 +6,7 @@ analysis folders; open them only for method detail or for code worth reusing.
 | analysis | date | what it asked | what it found |
 |---|---|---|---|
 | [`analyses/20260921`](../../analyses/20260921) | 2026-09-21 → 22 | Full QC and first-pass genomic ML on this run | Demux was under-assigning ~5×, fixed. Labels are **not** scrambled (unlike 20260721). 370/384 strains got a corroborated consensus. Genomics predicts held-out strains at R² 0.37. |
+| [`analyses/20261021`](../../analyses/20261021) | 2026-10-21 | Base-exact 16S reference DB (with operon haplotypes) and strain distinguishability, for the community experiment | 378/384 strains referenced (194 confirmed by both monos). 254 strains share a byte-identical 16S with another (72 groups). Measured read cross-talk hits its ~0.7% floor from ~7 bp, so 15 bp is conservative; max separable set 85 at 15 bp, 103–110 at 8 bp. |
 
 ## Headline results (from `analyses/20260921`)
 
