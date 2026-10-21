@@ -105,3 +105,18 @@ model does not correct for it; treat the slope as a sensitivity check.
   understates two-strain wells. See `experiments/20260721/known_issues.md`.
 - **`paths.py` pointed at the deleted `Link to Karl`** — fixed 2026-09-22. Genomic-ML
   runs before that fail on the first read rather than producing wrong numbers.
+
+---
+
+## ~1 in 5 wells holds a different organism from its genome — QUANTIFIED
+
+**Found** 2026-10-21 (`analyses/20261021/03_genome_concordance`). **Affects** any analysis
+joining this run's wells to `final_genomic_tables`. **Status** open; per-strain verdicts in
+`g02_strain_genome_status.csv`, design filter in `g04_design_eligibility.csv`.
+
+Of 294 wells with both a 20260907 reference and a genome, 61 hold an organism whose 16S is
+not the genome's (19 of them tier A: both monos agree, so the SOURCE well was taken over).
+Overgrowth is concentrated — the C001 clone (identity group G01) took 9 wells. Also: the 298
+genomes are only 181 distinct organisms (≥ 99.9% ANI clone clusters), and 23 assemblies carry
+a contaminant's rRNA operon. Genome-based models must drop the `wrong` wells and treat
+clone-mates as one strain in cross-validation.

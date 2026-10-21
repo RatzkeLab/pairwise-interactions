@@ -32,3 +32,18 @@ DIST_OUT = BASE / "02_distinguishability" / "outputs"
 
 # Any bacterial 16S orients any other: >=75% identity forward vs ~50% reverse-complemented.
 ORIENT_ANCHOR_STRAIN = "A1"
+
+# --- genomes (03_genome_concordance) ------------------------------------------------------
+# The genomes behind final_genomic_tables: panX's input GenBank files, one per collection
+# strain. Wells join through mapping_384_well_plate_collection.csv (Well_souce_plate ->
+# assembly_name; Schulenberg GenBank names carry an extra `_ASM..._genomic` suffix).
+import os  # noqa: E402
+GENOME_GBK_DIR = Path("/home/rl/Documents/Workstation_Data/Or/KEIO_collection_panX_mapping/"
+                      "STRAIN_LIBRARY_SEQ_PROCCSSED_DATA/all_gbk_files_including_CeMbio43/input_GenBank")
+GENOME_MAPPING = paths.RESOURCES / "mapping_384_well_plate_collection.csv"
+# FASTA extracted from the GenBank files (1.4 GB, ~4 s to rebuild) -- a cache, not an output
+GENOME_FNA_CACHE = Path(os.environ.get("TMPDIR", "/tmp")) / "genome_fna_cache_20261021"
+SKANI = "/home/rl/mambaforge/envs/nasal-strain/bin/skani"
+BLAST_BIN = Path("/home/rl/mambaforge/envs/blast/bin")
+GENOME_OUT = BASE / "03_genome_concordance" / "outputs"
+BARRNAP_BIN = Path("/home/rl/mambaforge/envs/NanoSeq/bin")   # barrnap 0.9 + nhmmer

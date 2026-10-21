@@ -5,8 +5,8 @@ relatedness, read out by nanopore 16S. Analyses `experiments/20260907` only — 
 two monocultures per strain on different plates plus ~8 pair wells each, so every
 sequence can be confirmed by independent wells rather than voted on.
 
-Run `TMPDIR=<scratch> python run_all.py` (env `karl_seq_analysis`, ~4 min; spoa from the
-`NGSpeciesID` env). Fully deterministic — a from-scratch rerun reproduces every output
+Run `TMPDIR=<scratch> python run_all.py` (env `karl_seq_analysis`, ~9 min; spoa from the
+`NGSpeciesID` env, skani from `nasal-strain`, blast from `blast`, barrnap from `NanoSeq`). Fully deterministic — a from-scratch rerun reproduces every output
 byte for byte.
 
 ## What to use
@@ -22,6 +22,10 @@ byte for byte.
 | `02_distinguishability/outputs/d01_distance_matrix_bp.csv` | full 378×378, haplotype-aware bp |
 | `02_distinguishability/outputs/d02_resolution_by_bp_clean.csv` | measured read cross-talk vs separation |
 | `02_distinguishability/outputs/d03_max_separable.csv` | largest mutually separable set per threshold |
+| **`03_genome_concordance/outputs/g04_design_eligibility.csv`** | **per strain: can it go into a genome-predicted community (`genomic_use` high / medium / exclude, and why), its genome unit** |
+| `03_genome_concordance/outputs/g02_strain_genome_status.csv` | per strain: does the genome on file carry the well's 16S, and on what evidence |
+| `03_genome_concordance/outputs/g02_genome_clusters.csv` | genomes that are one organism (≥ 99.9% ANI) |
+| `03_genome_concordance/outputs/g04_max_separable_genomic.csv` | largest separable community using genome-usable strains only |
 
 ## Headline results
 
@@ -114,6 +118,58 @@ tier C (n = 307):
 | 7 bp | 105 | 113 |
 | 5 bp | 112 | 120 |
 
+## Do the genomes describe what is in the wells? (`03_genome_concordance`)
+
+The genomic tables come from assemblies of the original isolates (panX's 298 GenBank
+files). The working plate has drifted. Each well's 20260907 16S (consensus and haplotypes)
+was blasted against all 298 assemblies, and the assemblies compared with each other
+(skani ANI) and checked for purity (barrnap + SPAdes contig coverage).
+
+**The 298 genomes are 181 distinct organisms.** 162 assemblies fall into 45 clone clusters
+(≥ 99.9% ANI; min within-cluster ANI 99.97%, alignment fraction ≥ 94%), the largest of
+16. For genome-based ML these are one strain each — `cv_strain` must hold clone-mates out
+together, or it leaks.
+
+**Verdict per well** (378 with a reference):
+
+| | ok | wrong | unverified | no genome |
+|---|---|---|---|---|
+| all | 220 | 61 | 13 | 84 |
+| tier A | 128 | 19 | 4 | 43 |
+
+`ok` = the well's 16S is in its own genome (218), or a clone-mate's (2). `wrong` = the
+genome carries a clearly different 16S (20), only a contaminant operon matches (3), a
+clone-mate's 16S differs (3), or the genome is < 80% ANI to every genome that does carry the
+well's 16S (35 — validated: on wells with a known answer this rule flags 15/16 mismatches
+and 2/158 matches). **About one in five wells with a genome holds a different organism
+from that genome**, and that includes 19 tier-A strains whose two monos agree perfectly —
+the monos agree because the source well itself was taken over.
+
+**G01, the 27-well identity group, is one known genome.** 16 wells are the C001 clone
+(K14 K16 K18 K20 M2 M6 M8 N14 N16 N18 N2 N20 N22 N6 P22 P24) and their assemblies carry
+the G01 16S exactly. The other 9 (A10 J10 J6 L12 N8 N10 N12 P16 P19) hold C001 by 16S but
+their genomes are other organisms (A10's is the G02 clone; N8/N10/N12 share another) —
+overgrown by C001. K22, K24 have no genome. Overgrowth is concentrated: C001 took 9 wells,
+the C002 clone (G02's organism) 5, C034 4.
+
+**9% of assemblies are themselves mixed** (23/294 carry a second organism's 16S). The
+tell-tale case: E21 and E22 share an identical full-length 16S but only ~4.8 kb of sequence —
+one rRNA operon. In E22's assembly that operon sits at 0.21× bulk coverage, its own 16S at
+9.3×: a contaminant in the sequenced culture whose multi-copy operon assembled while the rest
+of its genome did not. Matches to a contaminant operon are not counted as `ok`. 16 of 23
+mixed assemblies resolve by coverage; 7 stay ambiguous.
+
+**What is left for genome-based community design** (`g04`): 204 strains = **133 distinct
+genomes**. `high` (107): no other genome on file carries the same 16S, so the readout pins
+down the genome. `medium` (97): consistent, but 16S-identical relatives with different
+genomes exist, so a swap would be invisible. Largest separable community:
+
+| min separation | high only | high + medium |
+|---|---|---|
+| 15 bp | 61 | 77 |
+| 8 bp | 69 | 91 |
+| 5 bp | 73 | 98 |
+
 ## Method, and the traps it avoids
 
 1. **Per-population consensus** (`b01`, `scripts/deep_consensus.py`). spoa over the 50
@@ -142,6 +198,12 @@ tier C (n = 307):
    direction put a 19–23 bp floor under every comparison with the older DBs, whose
    sequences still carry primer tails.
 
+Genome-side traps: comparing two partial 16S fragments (or each against a reference) as if
+they overlapped invented up to 87 "mixed" assemblies — genes are compared only where they
+actually overlap; the concatenated BLAST FASTA must not sit where skani globs genomes (it
+matched everything); a 400–800 bp conserved stretch matches across distant taxa, so a genome
+"carries" a 16S only over ≥ 1000 bp.
+
 Bugs found and fixed on the way: `het_sites` recorded a "minor" allele equal to the final
 consensus base at ~50/50 sites (G15 position 431 as A/A), which dropped those sites from
 phasing and from the IUPAC reference; a "top minor base only" profile called MYb181's two
@@ -153,7 +215,10 @@ wells different genomes because position 180 is tri-allelic.
   lineage, and only 219 / 384 wells have an identity agreed across that lineage and the
   working plates (`merge_consensus_sequences/external_reference_crosscheck`). Classifying these
   sequences directly (SILVA/GTDB) would give a usable relatedness axis.
-- Whether a 16S-identical, same-operon pair is the same strain could be tested further with
-  20260907's mono OD/spectra and interaction profiles, or genomes.
+- The genomic ML built on 20260907 (`analyses/20260921/07_genomic_ml`) joined by well name,
+  so it trained on a wrong genome for ~1 in 5 joined wells, and its `cv_strain` folds let
+  clone-mates straddle train and test. Not yet re-run with `genomic_use` / `genomic_unit`.
+  20260630 (the plate as it was in July) has not been checked this way; `g01`/`g02` would
+  do it given that run's references.
 - The DB describes the **20260907 source plate**. A fresh copy from the freezer master may
   differ for some wells; include monocultures to re-anchor.
