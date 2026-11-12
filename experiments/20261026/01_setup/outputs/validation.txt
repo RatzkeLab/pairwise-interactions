@@ -1,0 +1,8 @@
+inputs: PASS
+communities: PASS
+layout: PASS
+copy: PASS
+plate 6: PASS
+barcodes: PASS
+echo: PASS
+minibar: PASS

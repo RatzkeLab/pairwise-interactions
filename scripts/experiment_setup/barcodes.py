@@ -62,15 +62,26 @@ def failed_barcodes(fwd_csv, rev_csv, q_max=0.05):
     return out
 
 
-def assign(wells, rng, exclude=None):
-    """wells: list of (barcode_plate, well). Each gets a unique (fwd, rev) combination."""
+def assign(wells, rng, exclude=None, exclude_combos=None):
+    """wells: list of (barcode_plate, well). Each gets a unique (fwd, rev) combination.
+    `exclude` drops failed oligos; `exclude_combos` drops (fwd, rev) pairs another
+    experiment already uses, so samples of the two can never be confused."""
     exclude = exclude or {"fwd": set(), "rev": set()}
+    taken = set(exclude_combos or ())
     combos = [(i, j) for i in range(96) for j in range(96)
-              if i != j and i not in exclude["fwd"] and j not in exclude["rev"]]
+              if i != j and i not in exclude["fwd"] and j not in exclude["rev"]
+              and (i, j) not in taken]
     if len(combos) < len(wells):
         raise ValueError(f"{len(wells)} wells but only {len(combos)} barcode combinations")
     order = rng.permutation(len(combos))[:len(wells)]
     return [(p, w, combos[k][0], combos[k][1]) for (p, w), k in zip(wells, order)]
+
+
+def combos_in_sheet(sheet, table):
+    """(fwd_idx, rev_idx) of every row of a minibar sheet, decoys included."""
+    fwd = dict(zip(table[table.side == "fwd"].barcode, table[table.side == "fwd"].idx))
+    rev = dict(zip(table[table.side == "rev"].barcode, table[table.side == "rev"].idx))
+    return [(int(fwd[f]), int(rev[r])) for f, r in zip(sheet.FwIndex, sheet.RvIndex)]
 
 
 def minibar_sheet(assigned, table):

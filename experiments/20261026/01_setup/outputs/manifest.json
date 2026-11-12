@@ -1,0 +1,164 @@
+{
+ "experiment": "20261026",
+ "created": "2026-10-29T11:58:52",
+ "config": {
+  "experiment": "20261026",
+  "seed": 20261026,
+  "copy_from": {
+   "experiment": "20261021",
+   "outputs": "pairwise_interaction_experiments/experiments/20261021/01_setup/outputs",
+   "plates": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "disjoint_barcodes": true
+  },
+  "inputs": {
+   "eligibility": "pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g04_design_eligibility.csv",
+   "distances": "pairwise_interaction_experiments/analyses/20261021/02_distinguishability/outputs/d01_distance_matrix_bp.csv",
+   "genome_index": "pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g01_genome_index.csv",
+   "ko_table": "data_links/resources/final_genomic_tables/KEGG_ko_and_strains_table.csv",
+   "pairs_20260907": "pairwise_interaction_experiments/analyses/20260921/analysis/relative_abundance/outputs/r03_pair_replicate_stats.csv",
+   "primer_specs": "data_links/resources/PrimerPlateSpecs.csv",
+   "failed_barcodes_fwd": "pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_fwd_barcode_forensics.csv",
+   "failed_barcodes_rev": "pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_rev_barcode_forensics.csv"
+  },
+  "separation_bp": 30,
+  "replicates": 3,
+  "blanks_per_plate": 2,
+  "blocks": {
+   "main": {
+    "plates": [
+     1,
+     2,
+     3,
+     4
+    ]
+   },
+   "passage": {
+    "plates": [
+     5,
+     6
+    ],
+    "new_plate": 6,
+    "pool": "core",
+    "large_from_main": true,
+    "shared_with_plate_5": {
+     "small_per_size": 3
+    },
+    "overlap_with_main": 0.25,
+    "barcode_plates": {
+     "5": [
+      5,
+      "24h"
+     ],
+     "6": [
+      6,
+      "24h"
+     ],
+     "7": [
+      5,
+      "48h"
+     ],
+     "8": [
+      6,
+      "48h"
+     ],
+     "9": [
+      5,
+      "5d"
+     ],
+     "10": [
+      6,
+      "5d"
+     ],
+     "11": [
+      5,
+      "10d"
+     ],
+     "12": [
+      6,
+      "10d"
+     ]
+    }
+   }
+  },
+  "decoy_barcode_plate": 99,
+  "small": {
+   "sizes": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "relatedness_strata": 3
+  },
+  "inoculum": {
+   "mode": "equal",
+   "member_nL": 100,
+   "reduced_nL": 75,
+   "max_well_inoculum_uL": 5.0,
+   "fill_cap_uL": 25
+  },
+  "primers": {
+   "volume_nL": 250
+  },
+  "demux": {
+   "barcode_edit_distance": 4
+  }
+ },
+ "inputs": {
+  "eligibility": "e605d2063d37a9ae9ed997a7eaf4cc89",
+  "distances": "fb413b7f49bfc8b0650f470730196b2d",
+  "genome_index": "540d7d5f76205c512d19bb18e0b3bbb9",
+  "ko_table": "ccfb881ccbc71ea7df666b3cf9283c99",
+  "pairs_20260907": "b02bfe86564e15548662d30c88bdedd6",
+  "primer_specs": "356e2aac32861cbd10b36f03a43a73d4",
+  "failed_barcodes_fwd": "5fa8c1c78d1cea3287f8a92f2ddedc7f",
+  "failed_barcodes_rev": "495725b2aadfdb098601b6fcdb320eec"
+ },
+ "copied_from": {
+  "communities.csv": "69cd7d7c59c2d7efc9a6c7b803258d8d",
+  "layout.csv": "633211382b6f429196681f55c773af84",
+  "pool.csv": "e0e203f6277d8bae509dde86d085d06f",
+  "strain_transfers.csv": "25442d04ae8c9a18606cbec7ea8e0225",
+  "minibar_sheet_20261021.tsv": "c5fa9036c980eec6e0403c4c0bdc7e0a",
+  "manifest.json": "92e00159d95fb865b886293280e05920"
+ },
+ "outputs": {
+  "communities.csv": "a2aea9c03451d7cc3cbc3b2fbf4e6513",
+  "demultiplex_config_20261026.yaml": "c58e6af34fbe80dcaea600155b935afc",
+  "echo_strains/echo_strains_20261026_plate_01.csv": "35899964b75adb0e6a9efbe559551455",
+  "echo_strains/echo_strains_20261026_plate_02.csv": "df60916ef0de4fef34f66a1fa7b6083f",
+  "echo_strains/echo_strains_20261026_plate_03.csv": "50bbe930159ef51c0098b7344a80b9a9",
+  "echo_strains/echo_strains_20261026_plate_04.csv": "89ed7f595d728c3d6d8ccd58c3e2a4f2",
+  "echo_strains/echo_strains_20261026_plate_05.csv": "86f73d8524293e8322c6335b864f779e",
+  "echo_strains/echo_strains_20261026_plate_06.csv": "cb130a10e5d03c36e2ca2ea0d667ddf2",
+  "echo_strains_20261026_all_plates.csv": "52caa639222174f553919cf036dba0d4",
+  "layout.csv": "f7bc7b6d4b64f0d9e83e2204595d73bd",
+  "minibar_sheet_20261026.tsv": "1a71499f030ee734038d769078b66236",
+  "pool.csv": "e0e203f6277d8bae509dde86d085d06f",
+  "primer_shooting/echo_primers_20261026_plate_01.csv": "445bfc8e6a4ee08e161d71820f52fcc2",
+  "primer_shooting/echo_primers_20261026_plate_02.csv": "561635cf49b90c665cee5244474dff89",
+  "primer_shooting/echo_primers_20261026_plate_03.csv": "9a8d37b4a6b306536db018d9ab6601da",
+  "primer_shooting/echo_primers_20261026_plate_04.csv": "d9fcee6cdb0cd3c078a41a55f0ca3e2f",
+  "primer_shooting/echo_primers_20261026_plate_05.csv": "a9f3a38333e2c5a236cfee84c46b2e5f",
+  "primer_shooting/echo_primers_20261026_plate_06.csv": "1a9902a86fbd48ae70a329229ab0cbb2",
+  "primer_shooting/echo_primers_20261026_plate_07.csv": "a3c6a39169dac63fc1b41cd70c00e861",
+  "primer_shooting/echo_primers_20261026_plate_08.csv": "abe0f06bb73a740f7602a2970556ddea",
+  "primer_shooting/echo_primers_20261026_plate_09.csv": "c61a4fc967f55b18f2db174c6768556f",
+  "primer_shooting/echo_primers_20261026_plate_10.csv": "1ab105cee305419a91b5552b410ba3b2",
+  "primer_shooting/echo_primers_20261026_plate_11.csv": "14dd82ee770699f6909bf3940bd9879d",
+  "primer_shooting/echo_primers_20261026_plate_12.csv": "e34448c3121d54aa451fe7c61cb54fd8",
+  "strain_transfers.csv": "ab4f58ecfad6c75ffbf00b71685d9f61",
+  "summary.txt": "364c4b1c713166237c6128c184f72623",
+  "validation.txt": "fdcb3ddcc7733a3e47ee517f1e103a55"
+ }
+}

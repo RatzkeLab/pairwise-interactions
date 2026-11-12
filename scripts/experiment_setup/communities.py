@@ -35,6 +35,7 @@ class Builder:
         self.usage = np.zeros(len(self.names))
         self.records = {}          # frozenset(members) -> record
         self.order = []
+        self.next_id = 1
 
     # ---- bookkeeping -------------------------------------------------------------------
     def strains(self, pool="core"):
@@ -52,13 +53,32 @@ class Builder:
             rec = self.records[key]
             rec["modules"].append(module)
             return rec
-        rec = dict(community_id=f"K{len(self.order) + 1:04d}", modules=[module],
+        rec = dict(community_id=f"K{self.next_id:04d}", modules=[module],
                    members=tuple(sorted(members)), size=len(members), **kw)
+        self.next_id += 1
         self.records[key] = rec
         self.order.append(rec)
         for m in members:
             self.usage[self.idx[m]] += 1
         return rec
+
+    def preload(self, table):
+        """Register the communities of an earlier design (its communities.csv) under their
+        own IDs: new communities are then never duplicates of them, draw toward the strains
+        they used least, and are numbered after them."""
+        for r in table.itertuples():
+            members = r.members.split()
+            key = frozenset(members)
+            if key in self.records:
+                raise ValueError(f"{r.community_id}: duplicate of {self.records[key]['community_id']}")
+            extra = r.also_in.split(";") if isinstance(getattr(r, "also_in", None), str) else []
+            rec = dict(community_id=r.community_id, modules=[r.module] + extra,
+                       members=tuple(sorted(members)), size=len(members))
+            self.records[key] = rec
+            self.order.append(rec)
+            for m in members:
+                self.usage[self.idx[m]] += 1
+        self.next_id = max(self.next_id, max(int(c[1:]) for c in table.community_id) + 1)
 
     def table(self):
         rows = []

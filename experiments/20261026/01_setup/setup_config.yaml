@@ -1,0 +1,75 @@
+# The ONLY per-experiment input. run_setup.py reads this, calls scripts/experiment_setup,
+# writes outputs/, validates, and records a manifest. Paths are relative to /home/rl/scripts/karl.
+# A DRAFT may be rebuilt with --force; a dated experiment may not.
+#
+# 20261026 = 20261021 again, well for well, plus a second passage plate (6) built like
+# plate 5 and sharing part of its communities, to measure between-plate variance under
+# daily dilution.
+
+experiment: "20261026"
+seed: 20261026
+
+copy_from:                   # plates 1-5 are this experiment's, well for well
+  experiment: "20261021"
+  outputs: pairwise_interaction_experiments/experiments/20261021/01_setup/outputs
+  plates: [1, 2, 3, 4, 5]
+  disjoint_barcodes: true    # no fwd x rev combination of 20261021 (decoys included) is
+                             # reused: the layouts are identical, so a sample swapped between
+                             # the two experiments would otherwise look perfectly plausible
+
+inputs:                      # the same files 20261021 was built from (md5-checked against
+                             # its manifest: plate 6 must be built on the same basis)
+  eligibility: pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g04_design_eligibility.csv
+  distances: pairwise_interaction_experiments/analyses/20261021/02_distinguishability/outputs/d01_distance_matrix_bp.csv
+  genome_index: pairwise_interaction_experiments/analyses/20261021/03_genome_concordance/outputs/g01_genome_index.csv
+  ko_table: data_links/resources/final_genomic_tables/KEGG_ko_and_strains_table.csv
+  pairs_20260907: pairwise_interaction_experiments/analyses/20260921/analysis/relative_abundance/outputs/r03_pair_replicate_stats.csv
+  primer_specs: data_links/resources/PrimerPlateSpecs.csv
+  failed_barcodes_fwd: pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_fwd_barcode_forensics.csv
+  failed_barcodes_rev: pairwise_interaction_experiments/analyses/20260921/02_demux_qc/outputs/d03_rev_barcode_forensics.csv
+
+separation_bp: 30            # default minimum 16S separation inside a community
+replicates: 3
+blanks_per_plate: 2
+
+blocks:
+  main:                      # 24 h endpoint, sequenced (copied from 20261021)
+    plates: [1, 2, 3, 4]
+  passage:                   # daily dilution; each plate self-contained, all diluted in parallel
+    plates: [5, 6]           # 5 copied from 20261021; 6 new
+    new_plate: 6
+    pool: core               # as plate 5: core strains only
+    large_from_main: true    # the 7 core large tests, as on plate 5 (so also shared with it)
+    shared_with_plate_5:
+      small_per_size: 3      # 3 of plate 5's communities of each size 3-10, one per
+                             # relatedness tercile; with the large tests 31 of 102 shared
+    overlap_with_main: 0.25  # of the remaining small communities, as on plate 5
+    barcode_plates:          # barcode plate: [passage plate, time point]; same layout at
+      5: [5, 24h]            # every time point. Barcode plate N = passage plate N at 24 h.
+      6: [6, 24h]            # NB: in 20261021 barcode plates 6-8 were plate 5 at 48h/5d/10d
+      7: [5, 48h]
+      8: [6, 48h]
+      9: [5, 5d]
+      10: [6, 5d]
+      11: [5, 10d]
+      12: [6, 10d]
+
+decoy_barcode_plate: 99      # 308 barcode combinations on the sheet, in no well: reads
+                             # assigned there measure demultiplexing mis-assignment
+
+small:                       # plate 6's new communities
+  sizes: [3, 4, 5, 6, 7, 8, 9, 10]
+  relatedness_strata: 3
+
+inoculum:                    # unchanged from 20261021
+  mode: equal
+  member_nL: 100
+  reduced_nL: 75
+  max_well_inoculum_uL: 5.0
+  fill_cap_uL: 25
+
+primers:
+  volume_nL: 250
+
+demux:
+  barcode_edit_distance: 4

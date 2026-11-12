@@ -50,10 +50,15 @@ def check_layout(layout, n_reps, within_plate_blocks, blanks_per_plate):
     if layout.duplicated(["plate", "well"]).any():
         errs.append("a well is used twice")
     com = layout[layout.well_type == "community"]
-    for (blk, cid), g in com.groupby(["block", "community_id"]):
+    # a within-plate block may span several plates, each holding its own full set
+    com = com.assign(_unit=np.where(com.block.isin(within_plate_blocks),
+                                    "plate " + com.plate.astype(str), ""))
+    for (blk, unit, cid), g in com.groupby(["block", "_unit", "community_id"]):
+        if unit:
+            blk = f"{blk}/{unit}"
         if len(g) != n_reps:
             errs.append(f"{blk}/{cid}: {len(g)} replicates, expected {n_reps}")
-        if blk in within_plate_blocks:
+        if unit:
             rows = list(g.well.str[0])
             if len(set(rows)) != len(rows):
                 errs.append(f"{blk}/{cid}: replicates share a row")
@@ -69,9 +74,13 @@ def check_layout(layout, n_reps, within_plate_blocks, blanks_per_plate):
     return errs
 
 
-def check_barcodes(assigned, failed):
+def check_barcodes(assigned, failed, exclude_combos=None):
     errs = []
     combos = [(i, j) for _, _, i, j in assigned]
+    if exclude_combos is not None:
+        n = len(set(combos) & set(exclude_combos))
+        if n:
+            errs.append(f"{n} barcode combinations are also used by the excluded experiment")
     if len(set(combos)) != len(combos):
         errs.append("a barcode combination is used twice")
     if any(i == j for i, j in combos):
@@ -81,6 +90,16 @@ def check_barcodes(assigned, failed):
     if len({(p, w) for p, w, _, _ in assigned}) != len(assigned):
         errs.append("a sample (plate, well) has two barcode combinations")
     return errs
+
+
+def check_copy(new, ref, cols, label):
+    """`new` and `ref` hold the same rows on `cols` (order ignored)."""
+    a = new[cols].sort_values(cols).reset_index(drop=True)
+    b = ref[cols].sort_values(cols).reset_index(drop=True)
+    if a.shape != b.shape:
+        return [f"{label}: {len(a)} rows vs {len(b)} in the reference"]
+    diff = ~((a == b) | (a.isna() & b.isna())).all(axis=1)
+    return [f"{label}: {int(diff.sum())} rows differ from the reference"] if diff.any() else []
 
 
 def check_minibar(sheet, planned_e):
