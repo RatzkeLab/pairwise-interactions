@@ -54,7 +54,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from relative_abundance import (
+from sequencing_experiments.pairwise_interaction_experiments.scripts.relative_abundance import (
     union_find_components, fit_bradley_terry,
     compute_directional_consistency, count_intransitive_triads,
 )

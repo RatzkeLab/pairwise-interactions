@@ -90,8 +90,8 @@ from scipy.stats import spearmanr, pearsonr, wilcoxon
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-import genomic_ml as gm
-from genomic_ml import (COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD,
+import sequencing_experiments.pairwise_interaction_experiments.scripts.genomic_ml as gm
+from sequencing_experiments.pairwise_interaction_experiments.scripts.genomic_ml import (COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD,
                         COLOR_CRITICAL, _scaled, _metrics, make_folds, summarize_folds)
 
 OD600_INDEX = 25          # 61 channels from 350 nm in 10 nm steps -> index 25 is 600 nm

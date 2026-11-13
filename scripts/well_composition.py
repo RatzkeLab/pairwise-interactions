@@ -30,7 +30,7 @@ import pandas as pd
 import edlib
 from multiprocessing import Pool
 
-from io_utils import load_layout, sample_fastq_path, load_reads
+from sequencing_experiments.pairwise_interaction_experiments.scripts.io_utils import load_layout, sample_fastq_path, load_reads
 
 # ---- thresholds about ONT/16S statistics, not the experiment ----
 LEN_LO, LEN_HI = 1300, 1600     # full-length 16S window, after barcode/primer trimming

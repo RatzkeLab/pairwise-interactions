@@ -27,8 +27,8 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from io_utils import load_layout, load_reference_db, load_reads, norm_edit_distance, edit_distance_bp, pair_key
-from mapping_validation import find_valley_threshold
+from sequencing_experiments.pairwise_interaction_experiments.scripts.io_utils import load_layout, load_reference_db, load_reads, norm_edit_distance, edit_distance_bp, pair_key
+from sequencing_experiments.pairwise_interaction_experiments.scripts.mapping_validation import find_valley_threshold
 
 # ---- thresholds: about ONT/16S sequencing statistics, not the experiment ----
 # Read assignment is decided in RAW bp, not normalized distance. The original rule compared a

@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import edlib
 
-from io_utils import load_layout
+from sequencing_experiments.pairwise_interaction_experiments.scripts.io_utils import load_layout
 
 CROSS_THR = 0.92          # identity to merge per-well representatives across wells
 MIN_CORROBORATING = 2     # wells that must carry a sequence before it is a strain

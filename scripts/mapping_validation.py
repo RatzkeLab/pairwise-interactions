@@ -29,7 +29,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 
-from io_utils import (
+from sequencing_experiments.pairwise_interaction_experiments.scripts.io_utils import (
     load_layout, sample_fastq_path, count_reads_fast, load_reads, load_reference_db,
     norm_edit_distance,
 )

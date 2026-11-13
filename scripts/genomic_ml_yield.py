@@ -50,7 +50,7 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
-from genomic_ml import (COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD,
+from sequencing_experiments.pairwise_interaction_experiments.scripts.genomic_ml import (COLOR_BLUE, COLOR_RED, COLOR_GRID, COLOR_TEXT_SECONDARY, COLOR_GOOD,
                         COLOR_CRITICAL, GENOMIC_DIR, load_strain_mapping, load_ko_table,
                         make_folds, _scaled)
 

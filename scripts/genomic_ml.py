@@ -60,7 +60,7 @@ plt.rcParams.update({
     "font.size": 10, "axes.titlesize": 11, "axes.titleweight": "bold",
 })
 
-from paths import GENOMIC_TABLES, MAPPING_DIR
+from sequencing_experiments.pairwise_interaction_experiments.scripts.paths import GENOMIC_TABLES, MAPPING_DIR
 
 # Figures default to SVG: these are read zoomed in (f02's cv_strain panel is ~800 overlapping
 # points) and end up in slides and the manuscript, where a raster at dpi=160 is already too

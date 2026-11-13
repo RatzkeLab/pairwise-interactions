@@ -25,7 +25,7 @@ def source_plate_od(files, wavelength=600):
     """Per-well OD of the 384 source plate, median over repeat reads (single reads
     saturate at the reader ceiling, 3.5). The source plate's well coordinate IS the
     strain name."""
-    import plate_reader as pr
+    import sequencing_experiments.pairwise_interaction_experiments.scripts.plate_reader as pr
     grids = [pr.read_plate(f, wavelength)[0] for f in files]
     grids = [g for g in grids if g is not None and g.shape == (plates.N_ROWS, plates.N_COLS)]
     if not grids:

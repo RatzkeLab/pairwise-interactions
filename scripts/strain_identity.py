@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import edlib
 
-from io_utils import load_reference_db
+from sequencing_experiments.pairwise_interaction_experiments.scripts.io_utils import load_reference_db
 
 NOISE_FLOOR = 0.02        # normalized edit distance; below this two references are
                           # indistinguishable given ONT consensus accuracy. Used for the
