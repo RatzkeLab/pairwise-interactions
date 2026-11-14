@@ -154,8 +154,17 @@ def main():
         if len(rows) < LABEL_MIN:
             continue
         ig = tab.identity_group.iloc[rows].dropna()
-        cl = tab.clone_cluster.iloc[rows].dropna()
-        lab = (ig.mode().iloc[0] if len(ig) else "") + (f" · {cl.mode().iloc[0]}" if len(cl) else "")
+        sub = tab.iloc[rows]
+        ok = sub[sub.genome_status == "ok"]
+        units = set(c if isinstance(c, str) else w for c, w in zip(ok.clone_cluster, ok.well))
+        if not units:
+            gen = "no verified genome"
+        elif len(units) == 1:
+            u = next(iter(units))
+            gen = f"1 genome ({u})" if u.startswith("C") and u[1:].isdigit() else "1 genome"
+        else:
+            gen = f"{len(units)} genomes"
+        lab = (ig.mode().iloc[0] if len(ig) else "") + f" · {gen}"
         y = hm_b + hm_h * (1 - (rows.mean() + 0.5) / len(leaves))
         fig.text(xs[0] - 0.004, y, f"{lab}  ({len(rows)})", ha="right", va="center", fontsize=7.6,
                  color=P.INK)
@@ -188,8 +197,8 @@ def main():
                      title_fontsize=8.8, handlelength=1.6, columnspacing=1.6)
     lg2._legend_box.align = "left"
     P.footnote(fig, "Row labels (right; zoom the PDF) = strain number · well, in leaf order. Left of the bars: blocks of "
-                    f">= {LABEL_MIN} identical strains, named by 16S identity group (f03a) · genome clone cluster "
-                    "(f04b).\nDistances: 02_distinguishability/d01_distance_matrix_bp.csv. Leaf order and every group id: "
+                    f">= {LABEL_MIN} identical strains, named by 16S identity group (f03a) · how many distinct verified "
+                    "genomes the block holds (clone cluster, f04b, if one).\nDistances: 02_distinguishability/d01_distance_matrix_bp.csv. Leaf order and every group id: "
                     "outputs/f06_cluster_order.csv.", y=0.006)
     P.save(fig, OUT, "f06_clustermap")
     return tab

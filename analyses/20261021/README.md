@@ -173,7 +173,9 @@ genomes exist, so a swap would be invisible. Largest separable community:
 
 ## Plate maps (`04_contamination_distinguishability`, added 2026-11-14)
 
-Six 384-well maps of the source plate; details and encoding choices in that folder's README.
+Eight 384-well maps of the source plate and a clustermap (f06: complete linkage on 16S
+distance, nested side bars at identical / < 5 / < 8 / < 15 / < 30 bp + genome clone and status);
+details and encoding choices in that folder's README.
 Two things they add beyond the tables above:
 
 - **Secondary organisms.** 24 source wells hold a second organism on independent evidence (both

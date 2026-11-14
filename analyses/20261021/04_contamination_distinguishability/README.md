@@ -1,6 +1,6 @@
 # 04 — plate maps: contamination, overgrowth, and what 16S can and cannot tell apart
 
-Six 384-well maps of the 20260907 source plate (the plate the community experiments are
+Eight 384-well maps of the 20260907 source plate, plus a clustermap (f06) (the plate the community experiments are
 inoculated from), each answering one question. Every well shows its **strain number**
 (isolate) on top; the bold label is what the figure is about. Run `python make_figures.py`
 (~15 s, env `karl_seq_analysis`) after stages 1–10, or the whole analysis with `../run_all.py`.
@@ -15,6 +15,7 @@ inoculated from), each answering one question. Every well shows its **strain num
 | `f04a_duplicate_isolates` | the 9 isolates placed in the collection more than once — do the copies still hold them? | 15 of 21 copies do; 4 hold something else; MYb57 is lost from both wells |
 | `f04b_genome_clone_clusters` | which genomes on file are identical? | 298 genomes = 181 organisms; 45 clone clusters, none of them deliberate copies |
 | `f05_genomic_use` | which wells can go into a genome-predicted community, and why not the rest? | 204 wells = 133 distinct genomes |
+| **`f06_clustermap`** | **all strains clustered by 16S distance, with nested side bars showing where groups break at identical / < 5 / < 8 / < 15 / < 30 bp, plus genome clone and status** | identical 72 groups → < 30 bp 47 groups (356 strains) |
 
 PNG (200 dpi) and PDF (vector) for each, in `outputs/`.
 
@@ -73,6 +74,23 @@ one strain. Dashed + × = a member whose well no longer holds the organism (37).
 down; light = usable, but a 16S-identical organism with a different genome exists. Excluded wells
 show the first reason that applies (tier D, never grew, mixed, wrong genome, unverified, no genome).
 
+**f06 — clustermap.** The answer to "groups at several granularities" that a plate map cannot
+give. Complete linkage on the haplotype-aware bp matrix, so cutting the tree at T leaves groups
+in which every pair is < T (mutually indistinguishable), and the cuts are NESTED: the side bars
+(identical 16S, < 5, < 8, < 15, < 30 bp) line up with the dendrogram, each block splitting only
+inside the block of the bar to its right; grey shades alternate so a change of shade is a break.
+Heatmap shades use the same thresholds. Checked: every group is a clique on the unadjusted
+distances, levels are nested, every group is contiguous in leaf order, and the finest bar equals
+f03a's 72 byte-identical groups exactly. Two adjustments make that last one true: a pair at 0 bp
+only through a shared operon haplotype is counted 0.5 bp (otherwise complete linkage split 9
+byte-identical groups), and the one byte-identical pair phasing put 1 bp apart (I21/L19) is 0.
+Groups at < 8 / < 15 bp differ slightly from f03b/c's greedy cover (66 vs 65, 59 vs 57 groups) —
+these are deterministic and nested, those are greedy. Blocks of >= 6 identical strains are named
+with how many distinct verified genomes they hold (G01: one, the C001 clone; G02: two; G04: four).
+The older clustermap (`initial_database_creation/.../combine_consensuses.ipynb`) used seaborn's
+default, which clusters Euclidean distances between ROWS of the matrix rather than the distances.
+Leaf order and every group id: `outputs/f06_cluster_order.csv`. Zoom the PDF for strain labels.
+
 ## Tables
 
 | file | contents |
@@ -81,6 +99,7 @@ show the first reason that applies (tier D, never grew, mixed, wrong genome, unv
 | `outputs/p00_secondary_organisms.csv` | every second-organism observation, with its evidence |
 | `outputs/p00_indistinguishable_groups.csv` | clique groups at 8 and 15 bp, members, max internal distance |
 | `outputs/f04a_duplicate_isolates.csv` | the 21 duplicate-isolate wells and what each holds |
+| `outputs/f06_cluster_order.csv` | clustermap leaf order; group id at every threshold; identity group, clone, genome status |
 
 ## Code
 
