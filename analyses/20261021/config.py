@@ -14,17 +14,23 @@ sys.path.insert(0, str(BASE.parents[1] / "scripts"))
 
 import paths  # noqa: E402
 
+# Repo paths are anchored on THIS folder, not on paths.py: after the 2026-11 move under
+# sequencing_experiments/, paths.PW_ROOT / CONSENSUS_MERGE still point at the old locations.
+PW = BASE.parents[1]                       # .../sequencing_experiments/pairwise_interaction_experiments
+SEQ = PW.parent                            # .../sequencing_experiments
+
 EXPERIMENT = "20260907"
-LAYOUT_CSV = paths.layout_csv(EXPERIMENT)
+LAYOUT_CSV = PW / "experiments" / EXPERIMENT / "01_setup" / f"strain_layout_{EXPERIMENT}.csv"
 DEMUX_DIR = Path("/home/rl/data/interim/karl/demultiplexing/20260907_demux_corrected/unflipped")
 
-PRIOR = paths.ANALYSES / "20260921"
+PRIOR = PW / "analyses" / "20260921"
 PRIOR_CONSENSUS_FASTA = PRIOR / "03_recreate_reference_db" / "outputs" / "c02_strain_consensus_corrected.fasta"
 PRIOR_CONSENSUS_SUMMARY = PRIOR / "03_recreate_reference_db" / "outputs" / "c01_strain_consensus_summary_corrected.csv"
 NO_GROWTH_CSV = PRIOR / "02_demux_qc" / "outputs" / "d13_strains_no_growth.csv"
 
 FULL_COLLECTION_FASTA = paths.REFERENCE_DBS_16S / "full_collection_db.fasta"
-CONTAM_INFORMED_FASTA = (paths.CONSENSUS_MERGE / "contamination_informed_db" / "results"
+CONSENSUS_MERGE = SEQ / "initial_database_creation" / "merge_consensus_sequences"
+CONTAM_INFORMED_FASTA = (CONSENSUS_MERGE / "contamination_informed_db" / "results"
                          / "contamination_informed_db.fasta")
 
 REFDB_OUT = BASE / "01_reference_db" / "outputs"

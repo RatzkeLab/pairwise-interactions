@@ -80,6 +80,11 @@ def main(processes=48):
     k["well_a"] = k.Ref_file.map(lambda p: Path(p).stem)
     k["well_b"] = k.Query_file.map(lambda p: Path(p).stem)
     k = k.rename(columns={"ANI": "ani", "Align_fraction_ref": "af_a", "Align_fraction_query": "af_b"})
+    # skani's multithreaded output order varies run to run: write each pair once, in a fixed
+    # orientation (well_a < well_b, alignment fractions swapped with it) and a fixed order
+    swap = k.well_a > k.well_b
+    k.loc[swap, ["well_a", "well_b", "af_a", "af_b"]] = k.loc[swap, ["well_b", "well_a", "af_b", "af_a"]].values
+    k = k.sort_values(["well_a", "well_b"])
     k[["well_a", "well_b", "ani", "af_a", "af_b"]].to_csv(OUT / "g01_ani_pairs.csv", index=False)
     print(f"skani: {len(k)} genome pairs above the ~80% ANI screen, "
           f"{(k.ani >= 99.9).sum()} at >=99.9%")

@@ -6,7 +6,7 @@ in order (~9 min).
 Order matters: stage 2 seeds its read assignment from stage 1's monoculture
 populations, stage 3 pools both, stage 4 needs the haplotype FASTA from stage 3, and
 stage 5 needs stage 4's pair list; stages 7-10 need the references and the genomes
-(GenBank -> FASTA cache under $TMPDIR, rebuilt in seconds). Each step writes its outputs, so any one can be
+(GenBank -> FASTA cache under $TMPDIR, rebuilt in seconds); stage 11 draws from all of them. Each step writes its outputs, so any one can be
 re-run alone once the steps above it have run once.
 """
 import sys
@@ -18,11 +18,13 @@ sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(BASE / "01_reference_db"))
 sys.path.insert(0, str(BASE / "02_distinguishability"))
 sys.path.insert(0, str(BASE / "03_genome_concordance"))
+sys.path.insert(0, str(BASE / "04_contamination_distinguishability"))
 
 import config  # noqa: E402,F401
 import b01_mono_populations, b02_pair_observations, b03_strain_reference  # noqa: E402
 import d01_distances, d02_read_resolution, d03_separable_sets  # noqa: E402
 import g01_genomes, g03_assembly_purity, g02_verdicts, g04_design_eligibility  # noqa: E402
+import make_figures  # noqa: E402
 
 
 def banner(n, title):
@@ -51,4 +53,6 @@ if __name__ == "__main__":
     g02_verdicts.main()
     banner(10, "design eligibility for genome-based communities")
     g04_design_eligibility.main()
+    banner(11, "plate maps: overgrowth, secondary organisms, indistinguishable / identical groups")
+    make_figures.main()
     print(f"\ndone in {time.time() - t0:.0f}s")

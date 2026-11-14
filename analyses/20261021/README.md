@@ -26,6 +26,7 @@ byte for byte.
 | `03_genome_concordance/outputs/g02_strain_genome_status.csv` | per strain: does the genome on file carry the well's 16S, and on what evidence |
 | `03_genome_concordance/outputs/g02_genome_clusters.csv` | genomes that are one organism (≥ 99.9% ANI) |
 | `03_genome_concordance/outputs/g04_max_separable_genomic.csv` | largest separable community using genome-usable strains only |
+| **`04_contamination_distinguishability/outputs/f0*.png`** | **384-well plate maps: overgrowth, secondary organisms, indistinguishable / identical groups, design view — see that folder's README** |
 
 ## Headline results
 
@@ -169,6 +170,20 @@ genomes exist, so a swap would be invisible. Largest separable community:
 | 15 bp | 61 | 77 |
 | 8 bp | 69 | 91 |
 | 5 bp | 73 | 98 |
+
+## Plate maps (`04_contamination_distinguishability`, added 2026-11-14)
+
+Six 384-well maps of the source plate; details and encoding choices in that folder's README.
+Two things they add beyond the tables above:
+
+- **Secondary organisms.** 24 source wells hold a second organism on independent evidence (both
+  20260907 monos, or tracking the strain in the 20261026 run from the same plate, or a second
+  haplotype > 10 bp away); in 14 of them the genome confirms the original strain still dominates.
+  Second populations seen in one mono only (164 wells) may have entered on the destination plate.
+- **Deliberate duplicates.** Of 9 isolates placed in 21 wells, 15 copies still hold the isolate;
+  F24 (MYb56) and M24 (MYb71) hold something else, and MYb57 is lost from both its wells.
+- Overgrowth is at most weakly local (G01: 3.2 wells to the nearest home well vs 4.9 by chance,
+  p = 0.06; pooled p = 0.17).
 
 ## Method, and the traps it avoids
 

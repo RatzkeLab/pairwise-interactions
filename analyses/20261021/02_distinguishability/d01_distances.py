@@ -65,7 +65,7 @@ OUT = config.DIST_OUT
 CLOSE_BP, RESOLVE_BP = 5, 15
 OPERON_DIFF = 0.20
 OPERON_MIN_COV = 30
-COLLECTION_CSV = (config.paths.CONSENSUS_MERGE / "plate_format"
+COLLECTION_CSV = (config.CONSENSUS_MERGE / "plate_format"
                   / "Full_384_strain_collection_no_seq_info.csv")
 
 
